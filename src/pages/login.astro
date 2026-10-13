@@ -1,0 +1,191 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const currentYear = new Date().getFullYear();
+---
+
+<Layout title="Вход — НормАрхив">
+	<main class="login-page">
+		<button class="theme-toggle login-theme-toggle" type="button" data-theme-toggle aria-label="Включить тёмную тему" title="Включить тёмную тему" aria-pressed="false">
+			<svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+			<svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></svg>
+		</button>
+		<div class="login-card">
+			<a class="brand" href="/" aria-label="НормАрхив">
+				<span class="brand-mark" aria-hidden="true">
+					<svg viewBox="0 0 32 32" fill="none"><path d="M7 5.5h12.2L25 11v15.5H7V5.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M19 5.8V12h5.7M11 17h10M11 21h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+				</span>
+				<span class="brand-copy"><strong>норм<span>архив</span></strong><small>документы организации</small></span>
+			</a>
+
+			<div class="welcome-mark" aria-hidden="true">
+				<svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4v13H7v-17Z"/><path d="M14 4v4h4M10 13h5M10 16h5"/></svg>
+			</div>
+			<p class="eyebrow">ЗАЩИЩЁННЫЙ ДОСТУП</p>
+			<h1>Войти в систему</h1>
+			<p class="intro">Используйте учётную запись организации</p>
+
+			<form id="login-form">
+				<label for="username">Логин</label>
+				<div class="input-wrap">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="6.5" r="3"/><path d="M4 17c.4-3.1 2.4-4.8 6-4.8s5.6 1.7 6 4.8"/></svg>
+					<input id="username" name="username" autocomplete="username" required maxlength="100" placeholder="Введите логин" />
+				</div>
+
+				<div class="password-label"><label for="password">Пароль</label></div>
+				<div class="input-wrap">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="8.5" width="12" height="9" rx="2"/><path d="M6.5 8.5V6a3.5 3.5 0 0 1 7 0v2.5M10 12v2"/></svg>
+					<input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024" placeholder="Введите пароль" />
+					<button class="show-password" type="button" aria-label="Показать пароль" aria-pressed="false">
+						<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 10s2.7-4.5 7.5-4.5 7.5 4.5 7.5 4.5-2.7 4.5-7.5 4.5S2.5 10 2.5 10Z"/><circle cx="10" cy="10" r="2"/></svg>
+					</button>
+				</div>
+				<label for="totp-token" id="totp-label" hidden>Код из приложения-аутентификатора</label>
+				<div class="input-wrap" id="totp-wrap" hidden>
+					<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="5" height="5"/><rect x="12" y="3" width="5" height="5"/><rect x="3" y="12" width="5" height="5"/><path d="M12 12h2v2h3v3h-2v-2h-3z"/></svg>
+					<input id="totp-token" name="totpToken" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="Введите 6-значный код" />
+				</div>
+				<div class="error-message" id="login-error" role="alert" hidden></div>
+				<button class="submit-button" type="submit">
+					<span>Войти</span>
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M10 4l6 6-6 6"/></svg>
+				</button>
+			</form>
+
+			<div class="login-note"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5 16 5v4.7c0 3.5-2.4 6.1-6 7.8-3.6-1.7-6-4.3-6-7.8V5l6-2.5Z"/><path d="m7.5 9.7 1.7 1.7 3.4-3.6"/></svg><span>Соединение защищено. Ваши данные в безопасности.</span></div>
+		</div>
+		<footer>© {currentYear} НормАрхив <span></span> Электронный архив нормативных документов</footer>
+	</main>
+</Layout>
+
+<script>
+	document.addEventListener('astro:page-load', () => {
+	if (!document.querySelector('#login-form')) return;
+	const form = document.querySelector<HTMLFormElement>('#login-form')!;
+	const error = document.querySelector<HTMLDivElement>('#login-error')!;
+	const submitButton = form.querySelector<HTMLButtonElement>('.submit-button')!;
+	const passwordInput = document.querySelector<HTMLInputElement>('#password')!;
+	const totpInput = document.querySelector<HTMLInputElement>('#totp-token')!;
+	const totpLabel = document.querySelector<HTMLLabelElement>('#totp-label')!;
+	const totpWrap = document.querySelector<HTMLDivElement>('#totp-wrap')!;
+	let requiresTotp = false;
+
+	form.addEventListener('submit', async (event) => {
+		event.preventDefault();
+		error.hidden = true;
+		submitButton.disabled = true;
+		submitButton.querySelector('span')!.textContent = 'Проверяем...';
+
+		try {
+			const response = await fetch('/api/auth/login', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					username: document.querySelector<HTMLInputElement>('#username')!.value,
+					password: passwordInput.value,
+					...(requiresTotp ? { totpToken: totpInput.value } : {}),
+				}),
+			});
+			if (!response.headers.get('content-type')?.includes('application/json')) {
+				error.textContent = 'Сервис входа временно недоступен.';
+				error.hidden = false;
+				return;
+			}
+			const result = await response.json() as { error?: string; requiresTotp?: boolean };
+			if (result.requiresTotp) {
+				requiresTotp = true;
+				totpLabel.hidden = false;
+				totpWrap.hidden = false;
+				error.textContent = 'Введите одноразовый код из приложения-аутентификатора.';
+				error.hidden = false;
+				totpInput.focus();
+				return;
+			}
+			if (!response.ok) {
+				error.textContent = result.error ?? 'Не удалось выполнить вход.';
+				error.hidden = false;
+				return;
+			}
+			window.location.assign('/');
+		} catch {
+			error.textContent = 'Не удалось связаться с сервером. Попробуйте ещё раз.';
+			error.hidden = false;
+		} finally {
+			submitButton.disabled = false;
+			submitButton.querySelector('span')!.textContent = 'Войти';
+		}
+	});
+
+	document.querySelector<HTMLButtonElement>('.show-password')!.addEventListener('click', (event) => {
+		const button = event.currentTarget as HTMLButtonElement;
+		const show = passwordInput.type === 'password';
+		passwordInput.type = show ? 'text' : 'password';
+		button.setAttribute('aria-pressed', String(show));
+		button.setAttribute('aria-label', show ? 'Скрыть пароль' : 'Показать пароль');
+	});
+	});
+</script>
+
+<style>
+	:global(:root) { color: #24312b; font-family: Inter, "Segoe UI", Arial, sans-serif; font-synthesis: none; text-rendering: optimizeLegibility; }
+	:global(*) { box-sizing: border-box; }
+	:global(body) { margin: 0; min-width: 320px; min-height: 100vh; }
+	.login-page { align-items: center; background: radial-gradient(ellipse at 49% 40%, #f8fbf8 0, #f1f5f1 56%, #edf2ee 100%); display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding: 35px 15px 18px; position: relative; }
+	.login-theme-toggle { position: absolute; right: max(24px, calc((100vw - 1160px) / 2)); top: 24px; }
+	.login-card { animation: login-arrive .42s cubic-bezier(.2, .75, .25, 1) both; background: #fff; border: 1px solid #e9efeb; border-radius: 12px; box-shadow: 0 12px 44px #2846380b; max-width: 410px; padding: 29px 35px 26px; width: 100%; }
+	.brand { align-items: center; color: inherit; display: flex; gap: 9px; justify-content: center; margin-bottom: 29px; text-decoration: none; }
+	.brand-mark { align-items: center; background: #d9eee2; border-radius: 9px; color: #225c44; display: flex; height: 35px; justify-content: center; width: 35px; }
+	.brand-mark svg { height: 23px; width: 23px; }
+	.brand-copy { display: grid; gap: 2px; }
+	.brand-copy strong { color: #203b30; font-size: 17px; font-weight: 750; letter-spacing: -.7px; }
+	.brand-copy strong span { color: #43825d; }
+	.brand-copy small { color: #87948c; font-size: 9px; }
+	.welcome-mark { align-items: center; background: #edf6f0; border-radius: 10px; color: #478362; display: flex; height: 43px; justify-content: center; margin: 0 auto 16px; width: 43px; }
+	.welcome-mark svg { fill: none; height: 23px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; width: 23px; }
+	.eyebrow { color: #62826f; font-size: 8px; font-weight: 700; letter-spacing: 1.1px; margin: 0 0 7px; text-align: center; }
+	h1 { color: #23312a; font-size: 22px; letter-spacing: -.5px; margin: 0; text-align: center; }
+	.intro { color: #929d96; font-size: 10px; margin: 7px 0 25px; text-align: center; }
+	form { display: grid; }
+	form > label, .password-label label { color: #59665f; font-size: 10px; font-weight: 600; margin-bottom: 7px; }
+	.password-label { display: flex; justify-content: space-between; margin-top: 16px; }
+	.input-wrap { align-items: center; border: 1px solid #e3e9e5; border-radius: 5px; display: flex; height: 39px; padding: 0 10px; transition: border .15s, box-shadow .15s; }
+	.input-wrap:focus-within { border-color: #86b99b; box-shadow: 0 0 0 3px #36805412; }
+	.input-wrap > svg { fill: none; flex: 0 0 auto; height: 16px; stroke: #9ba69f; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; width: 16px; }
+	input { background: transparent; border: 0; color: #39463f; font: inherit; font-size: 10px; height: 100%; min-width: 0; outline: 0; padding: 0 8px; width: 100%; }
+	input::placeholder { color: #afb8b2; }
+	.show-password { align-items: center; background: transparent; border: 0; color: #9ba69f; cursor: pointer; display: flex; flex: 0 0 auto; justify-content: center; padding: 3px; }
+	.show-password svg { fill: none; height: 16px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.35; width: 16px; }
+	.submit-button { align-items: center; background: #2b7853; border: 0; border-radius: 5px; color: #fff; cursor: pointer; display: flex; font-size: 11px; font-weight: 600; height: 40px; justify-content: center; margin-top: 19px; position: relative; transition: background .15s; }
+	.submit-button:hover { background: #236a49; }
+	.submit-button:disabled { cursor: wait; opacity: .75; }
+	.submit-button svg { fill: none; height: 15px; position: absolute; right: 13px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; width: 15px; }
+	.error-message { background: #fff4f2; border: 1px solid #f4d9d4; border-radius: 5px; color: #a45046; font-size: 10px; line-height: 1.5; margin-top: 13px; padding: 9px 10px; }
+	.error-message[hidden] { display: none; }
+		.input-wrap[hidden], label[hidden] { display: none; }
+	.login-note { align-items: center; background: #f7faf8; border-radius: 5px; color: #87948b; display: flex; font-size: 8px; gap: 7px; justify-content: center; margin-top: 20px; padding: 9px 5px; }
+	.login-note svg { fill: none; flex: 0 0 auto; height: 15px; stroke: #76a487; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.3; width: 15px; }
+	footer { color: #9ba79f; font-size: 8px; margin-top: 18px; text-align: center; }
+	footer span { background: #b9c5bd; border-radius: 50%; display: inline-block; height: 3px; margin: 0 7px 2px; width: 3px; }
+	@keyframes login-arrive {
+		from { opacity: 0; transform: translateY(9px) scale(.99); }
+		to { opacity: 1; transform: translateY(0) scale(1); }
+	}
+	@media (max-width: 480px) { .login-card { padding: 25px 21px 21px; } }
+	@media (prefers-reduced-motion: reduce) { .login-card { animation: none; } }
+
+	:global(html[data-theme="dark"] body) { background: #191e1b; color: #e2eae4; }
+	:global(html[data-theme="dark"]) .login-page { background: radial-gradient(ellipse at 49% 40%, #252d28 0, #1d2420 56%, #191e1b 100%); }
+	:global(html[data-theme="dark"]) .login-card { background: #252c28; border-color: #3a463f; box-shadow: 0 16px 52px #0004; }
+	:global(html[data-theme="dark"]) .brand-copy strong,
+	:global(html[data-theme="dark"]) h1 { color: #e4ece6; }
+	:global(html[data-theme="dark"]) .brand-copy small,
+	:global(html[data-theme="dark"]) .intro { color: #a2afa6; }
+	:global(html[data-theme="dark"]) form > label,
+	:global(html[data-theme="dark"]) .password-label label { color: #c1ccc4; }
+	:global(html[data-theme="dark"]) .input-wrap { background: #1d2420; border-color: #455148; }
+	:global(html[data-theme="dark"]) input { color: #e0e8e2; color-scheme: dark; }
+	:global(html[data-theme="dark"]) input::placeholder { color: #89978e; }
+	:global(html[data-theme="dark"]) .login-note { background: #29372e; color: #b7c9bc; }
+	:global(html[data-theme="dark"]) footer { color: #9ba89f; }
+	:global(html[data-theme="dark"]) .error-message { background: #412e2c; border-color: #69413c; color: #f0aaa1; }
+</style>

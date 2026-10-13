@@ -1,0 +1,806 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const section = Astro.params.section ?? '';
+const titles: Record<string, string> = {
+	users: 'Пользователи',
+	dictionaries: 'Справочники',
+	audit: 'Журнал действий',
+	import: 'Импорт документов',
+};
+if (!titles[section]) return new Response('Страница не найдена.', { status: 404 });
+const currentUser = Astro.locals.user;
+if (currentUser?.role !== 'admin') return Astro.redirect('/');
+const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase('ru') ?? '').join('');
+---
+
+<Layout title={`${titles[section]} — НормАрхив`}>
+	<div class="admin-shell" data-section={section}>
+		<aside class="sidebar" aria-label="Основная навигация" transition:name="app-sidebar">
+			<div class="sidebar-top">
+				<a class="brand" href="/" aria-label="НормАрхив — главная">
+					<span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M7 5.5h12.2L25 11v15.5H7V5.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M19 5.8V12h5.7M11 17h10M11 21h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+					<span class="brand-copy"><strong>норм<span>архив</span></strong><small>документы организации</small></span>
+				</a>
+				<button class="mobile-menu-toggle" type="button" data-mobile-menu-toggle aria-expanded="false" aria-label="Открыть меню">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
+				</button>
+			</div>
+			<div class="workspace-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+			<nav class="nav-list" aria-label="Рабочее пространство">
+				<a class="nav-item" href="/">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3.5" width="14" height="13" rx="2"/><path d="M3.5 8h13M8 8v8"/></svg>
+					<span>Каталог документов</span>
+				</a>
+				<a class="nav-item" href="/">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.6 1.7"/></svg>
+					<span>Недавние</span>
+				</a>
+				<a class="nav-item" href="/">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2.8 2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7L10 2.8Z"/></svg>
+					<span>Избранное</span>
+				</a>
+			</nav>
+			<div class="workspace-label nav-section-label">УПРАВЛЕНИЕ</div>
+			<nav class="nav-list" aria-label="Управление">
+				<a class:list={{ 'nav-item': true, selected: section === 'import' }} href="/admin/import" aria-current={section === 'import' ? 'page' : undefined}>
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 13V3.5M6.5 7 10 3.5 13.5 7M4 12.5v3A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5v-3"/></svg>
+					<span>Импорт документов</span>
+				</a>
+				<a class:list={{ 'nav-item': true, selected: section === 'users' }} href="/admin/users" aria-current={section === 'users' ? 'page' : undefined}>
+					<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8" cy="7" r="3"/><path d="M2.8 16c.5-2.4 2.3-3.7 5.2-3.7s4.7 1.3 5.2 3.7M14 5.2a3 3 0 0 1 0 5.6m1.1 1.7c1.2.7 1.8 1.8 2.1 3.5"/></svg>
+					<span>Пользователи</span>
+				</a>
+				<a class:list={{ 'nav-item': true, selected: section === 'audit' }} href="/admin/audit" aria-current={section === 'audit' ? 'page' : undefined}>
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3h12v14H4zM7 7h6M7 10h6M7 13h3"/></svg>
+					<span>Журнал действий</span>
+				</a>
+				<a class:list={{ 'nav-item': true, selected: section === 'dictionaries' }} href="/admin/dictionaries" aria-current={section === 'dictionaries' ? 'page' : undefined}>
+					<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.5"/><path d="m16.1 11.8 1.1.8-1.5 2.6-1.3-.5a6 6 0 0 1-1.4.8l-.2 1.4h-3l-.2-1.4a6 6 0 0 1-1.4-.8l-1.3.5-1.5-2.6 1.1-.8a6 6 0 0 1 0-1.6l-1.1-.8 1.5-2.6 1.3.5a6 6 0 0 1 1.4-.8l.2-1.4h3l.2 1.4a6 6 0 0 1 1.4.8l1.3-.5 1.5 2.6-1.1.8a6 6 0 0 1 0 1.6Z" transform="translate(-1 -1) scale(1.08)"/></svg>
+					<span>Настройки</span>
+				</a>
+			</nav>
+			<div class="sidebar-bottom">
+				<div class="storage-card">
+					<div class="storage-heading"><span>Диск</span><span data-storage-percent>Загрузка…</span></div>
+					<div class="storage-track" role="progressbar" aria-label="Занято на диске сервера" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span data-storage-meter></span></div>
+					<div class="storage-caption" data-storage-caption>Загружаем данные о хранилище…</div>
+				</div>
+				<a class="profile" href="/profile" aria-label="Открыть личный кабинет">
+					<span class="avatar" data-profile-initials>{userInitials}</span>
+					<span class="profile-copy"><strong data-profile-name>{currentUser.fullName}</strong><small>Администратор</small></span>
+					<svg class="profile-more" viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1"/><circle cx="10" cy="10" r="1"/><circle cx="16" cy="10" r="1"/></svg>
+				</a>
+				<button class="logout-button" id="admin-logout" type="button">Выйти из системы</button>
+			</div>
+		</aside>
+		<button class="mobile-nav-backdrop" type="button" data-mobile-nav-close aria-label="Закрыть меню"></button>
+		<main class="admin-main" transition:name="app-content">
+			<header class="admin-topbar">
+				<div class="breadcrumbs"><span>Управление</span><span class="crumb-divider">/</span><strong>{titles[section]}</strong></div>
+				<button class="theme-toggle" type="button" data-theme-toggle aria-label="Включить тёмную тему" title="Включить тёмную тему" aria-pressed="false">
+					<svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+					<svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></svg>
+				</button>
+			</header>
+		<section class="admin-content">
+			<div class="heading">
+				<div><p>АДМИНИСТРИРОВАНИЕ</p><h1>{titles[section]}</h1></div>
+				{(section === 'users' || section === 'dictionaries') && <button class="primary" id="add-record" type="button">＋ Добавить</button>}
+			</div>
+			{section === 'import' && (
+				<>
+					<p class="hint">Загрузите CSV/XLSX-таблицу или ZIP-архив с файлами. В ZIP можно добавить <code>manifest.csv</code> или <code>manifest.xlsx</code> с колонками «Название», «Номер», «Дата», «Вид», «Статус», «Подразделение», «Описание», «Теги» и «Файл».</p>
+					<form class="import-upload" id="import-form">
+						<label>Файл импорта<input name="file" type="file" accept=".csv,.xlsx,.zip" required /></label>
+						<button class="primary" type="submit" id="preview-import">Проверить и показать предпросмотр</button>
+					</form>
+					<div class="table-wrap import-table-wrap" id="import-table-wrap" hidden>
+						<table><thead><tr><th>ДОКУМЕНТ</th><th>ФАЙЛ</th><th>СОВПАДЕНИЯ</th><th>ДЕЙСТВИЕ</th><th>ЦЕЛЕВОЙ ДОКУМЕНТ</th></tr></thead><tbody id="import-rows"></tbody></table>
+						<div class="import-actions"><span id="import-summary"></span><button class="primary" id="commit-import" type="button">Выполнить импорт</button><button class="cancel" id="cancel-import" type="button">Отменить</button></div>
+					</div>
+				</>
+			)}
+			{section === 'users' && (
+				<>
+					<p class="hint">Управление локальными учётными записями и ролями пользователей.</p>
+					<div class="table-wrap"><table><thead><tr><th>ПОЛЬЗОВАТЕЛЬ</th><th>ЛОГИН</th><th>РОЛЬ</th><th>СТАТУС</th><th>ПОСЛЕДНИЙ ВХОД</th><th></th></tr></thead><tbody id="users-rows"></tbody></table></div>
+				</>
+			)}
+			{section === 'dictionaries' && (
+				<>
+					<p class="hint">Виды документов, статусы, подразделения и категории файлов.</p>
+					<div class="dictionary-toolbar"><label>Тип справочника<select id="dictionary-type"><option value="">Все типы</option><option value="doc_type">Виды документов</option><option value="status">Статусы</option><option value="department">Подразделения</option><option value="file_kind">Типы файлов</option></select></label></div>
+					<div class="table-wrap"><table><thead><tr><th>ТИП</th><th>НАЗВАНИЕ</th><th>ПОРЯДОК</th><th>СТАТУС</th><th></th></tr></thead><tbody id="dictionary-rows"></tbody></table></div>
+				</>
+			)}
+			{section === 'audit' && (
+				<>
+					<p class="hint">История входов, изменений документов и операций с файлами.</p>
+					<div class="audit-filters">
+						<div class="audit-filters-heading"><strong>Фильтры журнала</strong><span>Можно использовать несколько фильтров одновременно</span></div>
+						<label>ID пользователя<input id="audit-user" inputmode="numeric" placeholder="Например, 1" /></label>
+						<label>Действие<select id="audit-action">
+							<option value="">Все действия</option>
+							<option value="login">Вход в систему</option><option value="login_failed">Неудачная попытка входа</option>
+							<option value="logout">Выход из системы</option><option value="password_changed">Изменение пароля</option>
+							<option value="user_created">Создание пользователя</option><option value="user_deleted">Удаление пользователя</option>
+							<option value="document_created">Создание документа</option><option value="document_updated">Изменение документа</option><option value="document_deleted">Удаление документа</option>
+							<option value="file_uploaded">Загрузка файла</option><option value="file_downloaded">Скачивание файла</option><option value="file_deleted">Удаление файла</option>
+							<option value="file_imported">Импорт файла</option><option value="created_by_import">Создание документа при импорте</option>
+							<option value="file_version_created">Создание версии файла</option><option value="file_version_restored">Восстановление версии файла</option><option value="file_edit_link_created">Создание ссылки для редактирования</option>
+							<option value="dictionary_created">Создание записи справочника</option><option value="dictionary_updated">Изменение записи справочника</option><option value="dictionary_disabled">Отключение записи справочника</option>
+						</select></label>
+						<label>Тип объекта<select id="audit-object">
+							<option value="">Все объекты</option><option value="user">Пользователь</option><option value="document">Документ</option>
+							<option value="file">Файл</option><option value="version">Версия файла</option><option value="dictionary">Запись справочника</option>
+						</select></label>
+						<label>Начало периода<input id="audit-from" type="date" /></label>
+						<label>Конец периода<input id="audit-to" type="date" /></label>
+						<div class="audit-filter-actions"><button class="cancel" id="reset-audit" type="button">Сбросить</button><button class="primary" id="apply-audit" type="button">Показать записи</button></div>
+					</div>
+					<div class="audit-results-heading"><strong>События</strong><span id="audit-result-count">Последние записи</span></div>
+					<div class="table-wrap audit-table-wrap"><table class="audit-table"><thead><tr><th>ДАТА И ВРЕМЯ</th><th>ПОЛЬЗОВАТЕЛЬ</th><th>ДЕЙСТВИЕ</th><th>ОБЪЕКТ</th><th>РЕЗУЛЬТАТ</th><th>IP-АДРЕС</th></tr></thead><tbody id="audit-rows"></tbody></table></div>
+				</>
+			)}
+			<div class="feedback" id="feedback" role="status" aria-live="polite"></div>
+		</section>
+		</main>
+	</div>
+
+	<dialog id="admin-dialog">
+		<form id="admin-form">
+			<button class="close" id="close-dialog" type="button" aria-label="Закрыть">×</button>
+			<h2 id="dialog-heading"></h2>
+			<div id="dialog-fields"></div>
+			<div class="form-error" id="form-error" hidden></div>
+			<div class="form-actions"><button class="cancel" id="cancel-dialog" type="button">Отмена</button><button class="primary" type="submit">Сохранить</button></div>
+		</form>
+	</dialog>
+</Layout>
+
+<script define:vars={{ section, currentUserId: currentUser.id }}>
+	document.addEventListener('astro:page-load', () => {
+	const shell = document.querySelector('.admin-shell');
+	if (!shell || shell.dataset.initialized === 'true') return;
+	shell.dataset.initialized = 'true';
+	const currentSection = shell.dataset.section;
+	const feedback = document.querySelector('#feedback');
+	const dialog = document.querySelector('#admin-dialog');
+	const form = document.querySelector('#admin-form');
+	const fields = document.querySelector('#dialog-fields');
+	const formError = document.querySelector('#form-error');
+	let editingId = null;
+
+	function formatStorageBytes(bytes) {
+		if (bytes < 1024) return `${bytes} Б`;
+		const units = ['КБ', 'МБ', 'ГБ', 'ТБ', 'ПБ'];
+		let value = bytes / 1024;
+		let unit = 0;
+		while (value >= 1024 && unit < units.length - 1) {
+			value /= 1024;
+			unit++;
+		}
+		return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(value)} ${units[unit]}`;
+	}
+
+	async function loadStorageUsage() {
+		const caption = document.querySelector('[data-storage-caption]');
+		const percent = document.querySelector('[data-storage-percent]');
+		const track = document.querySelector('.storage-track');
+		const meter = document.querySelector('[data-storage-meter]');
+		try {
+			const response = await fetch('/api/storage/usage');
+			const payload = await response.json();
+			if (!response.ok || payload.archiveBytes === undefined || payload.freeBytes === undefined || payload.usedPercent === undefined) {
+				throw new Error(payload.error ?? `Ошибка сервера (${response.status}).`);
+			}
+			percent.textContent = `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(payload.usedPercent)}%`;
+			caption.textContent = `Архив: ${formatStorageBytes(payload.archiveBytes)} · Свободно: ${formatStorageBytes(payload.freeBytes)}`;
+			meter.style.width = `${payload.usedPercent}%`;
+			track.setAttribute('aria-valuenow', String(payload.usedPercent));
+			track.setAttribute('aria-valuetext', `${payload.usedPercent}% диска занято`);
+		} catch (error) {
+			console.error('Не удалось загрузить сведения о хранилище:', error);
+			percent.textContent = 'Недоступно';
+			caption.textContent = error instanceof Error ? error.message : 'Не удалось получить сведения о хранилище.';
+			track.setAttribute('aria-valuetext', 'Сведения о диске недоступны');
+		}
+	}
+
+	const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
+		'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+	})[character]);
+
+	function notify(message) {
+		feedback.textContent = message;
+		feedback.classList.add('visible');
+		window.setTimeout(() => feedback.classList.remove('visible'), 3200);
+	}
+
+	function field(label, name, type = 'text', attributes = '') {
+		return `<label>${label}<input name="${name}" type="${type}" ${attributes} /></label>`;
+	}
+
+	async function requestJson(url, options = {}) {
+		const response = await fetch(url, options);
+		const contentType = response.headers.get('content-type') ?? '';
+		const payload = contentType.includes('application/json') ? await response.json() : {};
+		if (!response.ok) throw new Error(payload.error ?? `Ошибка сервера (${response.status}).`);
+		return payload;
+	}
+
+	async function loadUsers() {
+		const { users } = await requestJson('/api/admin/users');
+		const body = document.querySelector('#users-rows');
+		body.replaceChildren();
+		for (const user of users) {
+			const row = document.createElement('tr');
+			row.innerHTML = `<td><strong>${escapeHtml(user.fullName)}</strong><small>${escapeHtml(user.email ?? '—')}</small></td>
+				<td>${escapeHtml(user.username)}</td>
+				<td><select class="role-select" aria-label="Роль ${escapeHtml(user.username)}">
+					<option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Администратор</option>
+					<option value="editor" ${user.role === 'editor' ? 'selected' : ''}>Редактор</option>
+					<option value="reader" ${user.role === 'reader' ? 'selected' : ''}>Читатель</option>
+				</select></td>
+				<td><button class="state-toggle ${user.isActive ? 'enabled' : ''}" type="button">${user.isActive ? 'Активен' : 'Заблокирован'}</button></td>
+				<td>${user.lastLoginAt ? escapeHtml(new Date(user.lastLoginAt).toLocaleString('ru-RU')) : 'Не входил'}</td>
+				<td><div class="user-actions"><button class="edit-user" type="button">Изменить</button><button class="delete-user" type="button" ${String(user.id) === String(currentUserId) ? 'disabled title="Нельзя удалить свою учётную запись"' : ''}>Удалить</button></div></td>`;
+			const roleSelect = row.querySelector('.role-select');
+			roleSelect.addEventListener('change', async () => {
+				try { await requestJson(`/api/admin/users/${user.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ role: roleSelect.value }) }); notify('Роль обновлена.'); }
+				catch (error) { notify(error.message); await loadUsers(); }
+			});
+			row.querySelector('.state-toggle').addEventListener('click', async () => {
+				try { await requestJson(`/api/admin/users/${user.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ isActive: !user.isActive }) }); await loadUsers(); }
+				catch (error) { notify(error.message); }
+			});
+			row.querySelector('.edit-user').addEventListener('click', () => openUserForm(user));
+			row.querySelector('.delete-user').addEventListener('click', async (event) => {
+				if (!(event.currentTarget instanceof HTMLButtonElement)) return;
+				const button = event.currentTarget;
+				if (button.disabled || !window.confirm(`Удалить учётную запись «${user.fullName}» (${user.username})? Документы и журнал действий сохранятся, восстановить учётную запись будет нельзя.`)) return;
+				button.disabled = true;
+				try {
+					await requestJson(`/api/admin/users/${user.id}`, { method: 'DELETE' });
+					await loadUsers();
+					notify('Пользователь удалён.');
+				} catch (error) {
+					notify(error.message);
+					button.disabled = false;
+				}
+			});
+			body.append(row);
+		}
+	}
+
+	function openUserForm(user = null) {
+		editingId = user?.id ?? null;
+		document.querySelector('#dialog-heading').textContent = user ? 'Изменить пользователя' : 'Новый пользователь';
+		fields.innerHTML = `${field('Логин', 'username', 'text', `required maxlength="100" placeholder="Например, ivanov" ${user ? 'disabled' : ''}`)}
+			${field('ФИО', 'fullName', 'text', 'required maxlength="200" placeholder="Имя и фамилия"')}
+			${field('Электронная почта', 'email', 'email', 'maxlength="320" placeholder="name@example.com"')}
+			${field(user ? 'Новый пароль (оставьте пустым, чтобы не менять)' : 'Пароль (не менее 12 символов)', 'password', 'password', `${user ? '' : 'required'} minlength="12" maxlength="1024"`)}
+			<label>Роль<select name="role"><option value="admin">Администратор</option><option value="editor">Редактор</option><option value="reader">Читатель</option></select></label>`;
+		if (user) {
+			form.elements.namedItem('fullName').value = user.fullName;
+			form.elements.namedItem('email').value = user.email ?? '';
+			form.elements.namedItem('role').value = user.role;
+		}
+		formError.hidden = true;
+		dialog.showModal();
+	}
+
+	async function loadDictionaries() {
+		const query = document.querySelector('#dictionary-type').value;
+		const { items } = await requestJson(`/api/admin/dictionaries${query ? `?type=${encodeURIComponent(query)}` : ''}`);
+		const body = document.querySelector('#dictionary-rows');
+		body.replaceChildren();
+		const labels = { doc_type: 'Вид документа', status: 'Статус', department: 'Подразделение', file_kind: 'Тип файла' };
+		for (const item of items) {
+			const row = document.createElement('tr');
+			row.innerHTML = `<td>${labels[item.type]}</td><td>${escapeHtml(item.name)}</td><td>${item.sortOrder}</td><td>${item.isActive ? 'Активен' : 'Отключён'}</td>
+				<td>${item.isActive ? '<button class="disable-item" type="button">Отключить</button>' : ''}</td>`;
+			row.querySelector('.disable-item')?.addEventListener('click', async () => {
+				try { await requestJson(`/api/admin/dictionaries/${item.id}`, { method: 'DELETE' }); await loadDictionaries(); notify('Запись отключена.'); }
+				catch (error) { notify(error.message); }
+			});
+			body.append(row);
+		}
+	}
+
+	function openDictionaryForm() {
+		editingId = null;
+		document.querySelector('#dialog-heading').textContent = 'Новая запись справочника';
+		fields.innerHTML = `<label>Тип<select name="type" required>
+			<option value="doc_type">Вид документа</option><option value="status">Статус</option>
+			<option value="department">Подразделение</option><option value="file_kind">Тип файла</option>
+		</select></label>${field('Название', 'name', 'text', 'required maxlength="200"')}${field('Порядок сортировки', 'sortOrder', 'number', 'min="0" max="100000" value="0"')}`;
+		formError.hidden = true;
+		dialog.showModal();
+	}
+
+	async function loadAudit() {
+		const params = new URLSearchParams();
+		for (const [id, key] of [['audit-user', 'userId'], ['audit-action', 'action'], ['audit-object', 'object'], ['audit-from', 'from'], ['audit-to', 'to']]) {
+			const value = document.getElementById(id).value.trim();
+			if (value) params.set(key, value);
+		}
+		params.set('limit', '100');
+		const { entries } = await requestJson(`/api/admin/audit?${params}`);
+		const body = document.querySelector('#audit-rows');
+		body.replaceChildren();
+		const actionLabels = {
+			login: 'Вход в систему', login_failed: 'Неудачная попытка входа', logout: 'Выход из системы',
+			password_changed: 'Изменение пароля', user_created: 'Создание пользователя', user_deleted: 'Удаление пользователя',
+			document_created: 'Создание документа', document_updated: 'Изменение документа', document_deleted: 'Удаление документа',
+			file_uploaded: 'Загрузка файла', file_downloaded: 'Скачивание файла', file_deleted: 'Удаление файла',
+			file_imported: 'Импорт файла', created_by_import: 'Создание документа при импорте',
+			file_version_created: 'Создание версии файла', file_version_restored: 'Восстановление версии файла',
+			file_edit_link_created: 'Создание ссылки для редактирования',
+			dictionary_created: 'Создание записи справочника', dictionary_updated: 'Изменение записи справочника',
+			dictionary_disabled: 'Отключение записи справочника',
+		};
+		const objectLabels = { user: 'Пользователь', document: 'Документ', file: 'Файл', version: 'Версия файла', dictionary: 'Запись справочника' };
+		document.querySelector('#audit-result-count').textContent = `Найдено записей: ${entries.length}`;
+		for (const entry of entries) {
+			const row = document.createElement('tr');
+			row.innerHTML = `<td class="audit-date">${escapeHtml(new Date(entry.createdAt).toLocaleString('ru-RU'))}</td>
+				<td>${escapeHtml(entry.userName ?? (entry.userId ? `Удалённый пользователь · ID ${entry.userId}` : 'Система'))}</td>
+				<td><span class="audit-action-label">${escapeHtml(actionLabels[entry.action] ?? entry.action)}</span></td>
+				<td>${escapeHtml(objectLabels[entry.objectType] ?? entry.objectType)}${entry.objectId ? ` <span class="audit-object-id">№ ${escapeHtml(entry.objectId)}</span>` : ''}</td>
+				<td><span class="result-badge ${entry.result === 'success' ? 'success' : 'failure'}">${entry.result === 'success' ? 'Успешно' : 'Ошибка'}</span></td>
+				<td><code>${escapeHtml(entry.ipAddress ?? '—')}</code></td>`;
+			body.append(row);
+		}
+	}
+
+	let importBatchId = null;
+	let importItems = [];
+	function renderImportPreview(items) {
+		const body = document.querySelector('#import-rows');
+		body.replaceChildren();
+		for (const item of items) {
+			const row = document.createElement('tr');
+			row.dataset.itemId = item.id;
+			const duplicateText = item.error ?? (item.duplicates.length
+				? item.duplicates.map((duplicate) => `№ ${duplicate.number || '—'} · ${duplicate.title}`).join('; ')
+				: 'Совпадений нет');
+			row.innerHTML = `<td><strong>${escapeHtml(item.title || 'Без названия')}</strong><small>${escapeHtml(item.number || 'Без номера')} · ${escapeHtml(item.date || 'Без даты')}</small></td>
+				<td>${escapeHtml(item.fileName ?? '—')}</td><td class="${item.error ? 'import-error' : ''}">${escapeHtml(duplicateText)}</td>
+				<td><select class="import-action" aria-label="Действие импорта">
+					<option value="create" ${item.defaultAction === 'create' ? 'selected' : ''} ${item.error ? 'disabled' : ''}>Создать документ</option>
+					<option value="attach" ${item.defaultAction === 'attach' ? 'selected' : ''} ${!item.fileName || !item.duplicates.length ? 'disabled' : ''}>Добавить файл к совпадению</option>
+					<option value="skip" ${item.defaultAction === 'skip' ? 'selected' : ''}>Пропустить</option>
+				</select></td><td><select class="import-target" aria-label="Документ для вложения"><option value="">Выберите при добавлении файла</option>
+					${item.duplicates.map((duplicate) => `<option value="${escapeHtml(duplicate.id)}">№ ${escapeHtml(duplicate.number || '—')} · ${escapeHtml(duplicate.title)}</option>`).join('')}</select></td>`;
+			row.querySelector('.import-action').addEventListener('change', () => {
+				row.querySelector('.import-target').disabled = row.querySelector('.import-action').value !== 'attach';
+			});
+			row.querySelector('.import-target').disabled = row.querySelector('.import-action').value !== 'attach';
+			body.append(row);
+		}
+		document.querySelector('#import-summary').textContent = `Записей: ${items.length}. Проверьте возможные совпадения и выберите действие для каждой строки.`;
+		document.querySelector('#import-table-wrap').hidden = false;
+	}
+
+	async function submitImportPreview(event) {
+		event.preventDefault();
+		const button = document.querySelector('#preview-import');
+		button.disabled = true;
+		try {
+			if (importBatchId) {
+				await requestJson(`/api/admin/import/${importBatchId}`, { method: 'DELETE' });
+				importBatchId = null;
+			}
+			const response = await fetch('/api/admin/import/preview', { method: 'POST', body: new FormData(document.querySelector('#import-form')) });
+			const payload = await response.json();
+			if (!response.ok) throw new Error(payload.error ?? 'Не удалось разобрать импорт.');
+			importBatchId = payload.batchId;
+			importItems = payload.items;
+			renderImportPreview(importItems);
+		} catch (error) {
+			notify(error.message);
+		} finally {
+			button.disabled = false;
+		}
+	}
+
+	async function cancelImport() {
+		if (!importBatchId) return;
+		try {
+			await requestJson(`/api/admin/import/${importBatchId}`, { method: 'DELETE' });
+			importBatchId = null;
+			importItems = [];
+			document.querySelector('#import-table-wrap').hidden = true;
+			document.querySelector('#import-form').reset();
+			notify('Предпросмотр импорта отменён.');
+		} catch (error) { notify(error.message); }
+	}
+
+	async function commitImport() {
+		if (!importBatchId) return;
+		const items = [...document.querySelectorAll('#import-rows tr')].map((row) => {
+			const action = row.querySelector('.import-action').value;
+			const targetDocumentId = row.querySelector('.import-target').value;
+			return { id: row.dataset.itemId, action, ...(action === 'attach' && targetDocumentId ? { targetDocumentId } : {}) };
+		});
+		const button = document.querySelector('#commit-import');
+		button.disabled = true;
+		try {
+			const result = await requestJson(`/api/admin/import/${importBatchId}/commit`, {
+				method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items }),
+			});
+			const created = result.outcomes.filter((item) => item.action === 'create').length;
+			const attached = result.outcomes.filter((item) => item.action === 'attach').length;
+			const skipped = result.outcomes.filter((item) => item.action === 'skip').length;
+			notify(`Импорт завершён: создано ${created}, добавлено файлов ${attached}, пропущено ${skipped}.`);
+			importBatchId = null;
+			document.querySelector('#import-table-wrap').hidden = true;
+			document.querySelector('#import-form').reset();
+		} catch (error) {
+			notify(error.message);
+		} finally {
+			button.disabled = false;
+		}
+	}
+
+	async function load() {
+		try {
+			if (currentSection === 'users') await loadUsers();
+			if (currentSection === 'dictionaries') await loadDictionaries();
+			if (currentSection === 'audit') await loadAudit();
+		} catch (error) {
+			notify(error.message);
+		}
+	}
+
+	document.querySelector('#add-record')?.addEventListener('click', () => {
+		if (currentSection === 'users') openUserForm();
+		if (currentSection === 'dictionaries') openDictionaryForm();
+	});
+	document.querySelector('#dictionary-type')?.addEventListener('change', () => void loadDictionaries().catch((error) => notify(error.message)));
+	document.querySelector('#apply-audit')?.addEventListener('click', () => void loadAudit().catch((error) => notify(error.message)));
+	document.querySelector('#reset-audit')?.addEventListener('click', () => {
+		document.querySelector('.audit-filters').querySelectorAll('input, select').forEach((control) => { control.value = ''; });
+		void loadAudit().catch((error) => notify(error.message));
+	});
+	document.querySelector('#import-form')?.addEventListener('submit', submitImportPreview);
+	document.querySelector('#commit-import')?.addEventListener('click', commitImport);
+	document.querySelector('#cancel-import')?.addEventListener('click', cancelImport);
+	form.addEventListener('submit', async (event) => {
+		event.preventDefault();
+		formError.hidden = true;
+		const data = new FormData(form);
+		const payload = Object.fromEntries(data.entries());
+		try {
+			if (currentSection === 'users' && editingId) {
+				delete payload.username;
+				if (!payload.password) delete payload.password;
+				await requestJson(`/api/admin/users/${editingId}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+				await loadUsers();
+			} else if (currentSection === 'users') {
+				await requestJson('/api/admin/users', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+				await loadUsers();
+			} else {
+				await requestJson('/api/admin/dictionaries', {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ ...payload, sortOrder: Number(payload.sortOrder) || 0 }),
+				});
+				await loadDictionaries();
+			}
+			dialog.close();
+			notify('Изменения сохранены.');
+		} catch (error) {
+			formError.textContent = error.message;
+			formError.hidden = false;
+		}
+	});
+	document.querySelector('#close-dialog').addEventListener('click', () => dialog.close());
+	document.querySelector('#cancel-dialog').addEventListener('click', () => dialog.close());
+	dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+	document.querySelector('#admin-logout')?.addEventListener('click', async () => {
+		try {
+			const response = await fetch('/api/auth/logout', { method: 'POST' });
+			if (!response.ok) throw new Error('Сервер не подтвердил завершение сессии.');
+			window.location.assign('/login');
+		} catch {
+			notify('Не удалось завершить сеанс. Проверьте соединение и повторите попытку.');
+		}
+	});
+	document.querySelector('nav[aria-label="Управление"]')?.addEventListener('click', (event) => {
+		if (!(event.target instanceof Element)) return;
+		const link = event.target.closest('a[aria-current="page"]');
+		if (link) event.preventDefault();
+	});
+	void load();
+	void loadStorageUsage();
+	});
+</script>
+
+<style>
+	:global(*) { box-sizing: border-box; }
+	:global(body) { background: #f6f8f7; color: #24312b; font-family: Inter, "Segoe UI", Arial, sans-serif; margin: 0; min-width: 360px; }
+	.admin-shell { min-height: 100vh; }
+	.sidebar { background: #172a27; bottom: 0; color: #e8f0ed; display: flex; flex-direction: column; left: 0; padding: 27px 17px 16px; position: fixed; top: 0; width: 252px; z-index: 3; }
+	.brand { align-items: center; color: inherit; display: flex; gap: 11px; margin: 0 7px 47px; text-decoration: none; }
+	.brand-mark { align-items: center; background: #c6e7d5; border-radius: 11px; color: #184a3c; display: flex; flex: 0 0 39px; height: 39px; justify-content: center; width: 39px; }
+	.brand-mark svg { height: 25px; width: 25px; }
+	.brand-copy { display: grid; gap: 2px; }
+	.brand-copy strong { color: #f5f7f6; font-size: 19px; font-weight: 750; letter-spacing: -.8px; }
+	.brand-copy strong span { color: #a7d5bc; }
+	.brand-copy small { color: #91a29d; font-size: 10px; letter-spacing: .16px; }
+	.workspace-label { color: #81928d; font-size: 9px; font-weight: 700; letter-spacing: 1.15px; margin: 0 10px 12px; }
+	.nav-list { display: grid; gap: 4px; }
+	.nav-item { align-items: center; background: transparent; border: 0; border-radius: 8px; color: #afbfba; display: flex; font-size: 12px; gap: 11px; min-height: 41px; padding: 0 10px; position: relative; text-align: left; text-decoration: none; transition: background .2s ease, color .2s ease, transform .2s ease; width: 100%; }
+	.nav-item::before { background: #a7d5bc; border-radius: 0 3px 3px 0; content: ""; inset: 9px auto 9px 0; opacity: 0; position: absolute; transform: scaleY(.55); transition: opacity .2s ease, transform .2s ease; width: 3px; }
+	.nav-item:hover { background: #233a35; color: #fff; transform: translateX(2px); }
+	.nav-item:active { transform: translateX(2px) scale(.985); }
+	.nav-item.selected { background: #2b4940; color: #f6fbf8; font-weight: 600; }
+	.nav-item.selected::before { opacity: 1; transform: scaleY(1); }
+	.nav-item:focus-visible, .logout-button:focus-visible { outline: 2px solid #a7d5bc; outline-offset: 2px; }
+	.nav-item svg { fill: none; flex: 0 0 17px; height: 17px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.35; transition: transform .2s ease; width: 17px; }
+	.nav-item:hover svg { transform: scale(1.08); }
+	.nav-section-label { margin-top: 35px; }
+	.sidebar-bottom { margin-top: auto; }
+	.storage-card { background: #203832; border: 1px solid #304940; border-radius: 9px; margin: 0 2px 15px; padding: 12px 12px 11px; }
+	.storage-heading { color: #d7e1dd; display: flex; font-size: 10px; font-weight: 600; justify-content: space-between; }
+	.storage-heading span:last-child { color: #aed9bf; }
+	.storage-track { background: #3c514a; border-radius: 6px; height: 5px; margin: 10px 0 7px; overflow: hidden; }
+	.storage-track span { background: #96d2ad; border-radius: inherit; display: block; height: 100%; transition: width .35s ease; width: 0; }
+	.storage-caption { color: #91a49c; font-size: 9px; }
+	.profile { align-items: center; background: transparent; border: 0; border-radius: 7px; border-top: 1px solid #30423e; box-sizing: border-box; color: inherit; cursor: pointer; display: flex; font-family: inherit; gap: 9px; min-height: 48px; padding: 8px 10px; text-align: left; text-decoration: none; transition: background .2s ease, padding .2s ease; width: 100%; }
+	.profile:hover { background: #203832; padding-left: 7px; padding-right: 7px; }
+	.avatar { align-items: center; background: #d3e7dd; border-radius: 50%; color: #235942; display: flex; flex: 0 0 auto; font-size: 9px; font-weight: 700; height: 30px; justify-content: center; width: 30px; }
+	.profile-copy { display: grid; gap: 3px; }
+	.profile-copy strong { color: #e5ece9; font-size: 10px; font-weight: 600; }
+	.profile-copy small { color: #91a29d; font-size: 9px; }
+	.profile-more { fill: #9fb0aa; height: 17px; margin-left: auto; stroke: none; width: 17px; }
+	.logout-button { background: transparent; border: 0; color: #9aaba4; cursor: pointer; font-size: 9px; margin: 10px 0 0 41px; padding: 2px 0; text-align: left; transition: color .18s ease, transform .18s ease; }
+	.logout-button:hover { color: #e6efeb; transform: translateX(2px); }
+	.admin-main { margin-left: 252px; min-height: 100vh; }
+	.admin-topbar { align-items: center; background: #fff; border-bottom: 1px solid #eef0f2; display: flex; height: 62px; justify-content: space-between; padding: 0 42px; }
+	.breadcrumbs { align-items: center; color: #8a949f; display: flex; font-size: 11px; gap: 10px; }
+	.breadcrumbs strong { color: #394552; font-weight: 600; }
+	.crumb-divider { color: #c2c8cd; }
+	.admin-content { margin: 0 auto; max-width: 1420px; padding: 42px 36px; }
+	.admin-content > .heading { animation: admin-arrive .34s cubic-bezier(.2, .75, .25, 1) both; }
+	.heading { align-items: flex-end; display: flex; justify-content: space-between; }
+	.heading p { color: #62806e; font-size: 10px; font-weight: 700; letter-spacing: 1.3px; margin: 0 0 9px; }
+	h1 { color: #23352b; font-size: 30px; letter-spacing: -.7px; margin: 0; }
+	.hint { color: #76847b; font-size: 13px; line-height: 1.6; margin: 10px 0 24px; }
+	.primary { background: #267a57; border: 1px solid #267a57; border-radius: 7px; box-shadow: 0 2px 4px #236e5018; color: white; cursor: pointer; font-size: 12px; font-weight: 650; min-height: 42px; padding: 0 16px; transition: background .15s ease, box-shadow .15s ease, transform .15s ease; }
+	.primary:hover { background: #1f6949; box-shadow: 0 4px 10px #236e5026; transform: translateY(-1px); }
+	.primary:active, .cancel:active { transform: translateY(1px); }
+	.admin-main button, .admin-main input, .admin-main select { font-family: inherit; }
+	.admin-main select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20'%3E%3Cpath d='m5 7 5 5 5-5' fill='none' stroke='%23718078' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-position: right 10px center; background-repeat: no-repeat; background-size: 14px; padding-right: 32px; }
+	:global(.admin-main .role-select) { appearance: none; background-color: #fff; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20'%3E%3Cpath d='m5 7 5 5 5-5' fill='none' stroke='%23718078' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-position: right 9px center; background-repeat: no-repeat; background-size: 14px; border: 1px solid #dce5df; border-radius: 7px; color: #405047; cursor: pointer; font-size: 12px; min-height: 38px; padding: 7px 31px 7px 10px; }
+	:global(.admin-main .role-select:focus-visible) { border-color: #69a982; box-shadow: 0 0 0 3px #267a571a; outline: 0; }
+	:global(.admin-main .state-toggle) { align-items: center; border: 1px solid #e6ebe8; border-radius: 18px; display: inline-flex; font-size: 11px; font-weight: 600; justify-content: center; min-height: 32px; min-width: 104px; padding: 0 12px; }
+	:global(.admin-main .state-toggle.enabled) { background: #edf7f0; border-color: #d7ebdc; color: #3d8057; }
+	:global(.admin-main .state-toggle:not(.enabled)) { background: #fff4ed; border-color: #f1dfd1; color: #9b633d; }
+	:global(.admin-main .edit-user) { background: #edf6f0; border: 1px solid #dfede3; border-radius: 7px; color: #28764f; cursor: pointer; font-size: 11px; font-weight: 600; min-height: 34px; padding: 0 12px; }
+	:global(.admin-main .edit-user:hover) { background: #e2f0e7; }
+	:global(.admin-main .user-actions) { align-items: center; display: flex; gap: 7px; }
+	:global(.admin-main .delete-user) { background: #fff5f4; border: 1px solid #f2ddda; border-radius: 7px; color: #a34d45; cursor: pointer; font-size: 11px; font-weight: 600; min-height: 34px; padding: 0 11px; }
+	:global(.admin-main .delete-user:hover:not(:disabled)) { background: #fce9e7; border-color: #ebc8c3; }
+	:global(.admin-main .delete-user:disabled) { cursor: not-allowed; opacity: .55; }
+	:global(.admin-main table) { border-collapse: collapse; min-width: 740px; text-align: left; width: 100%; }
+	:global(.admin-main th) { background: #f8faf8; border-bottom: 1px solid #e9efeb; color: #718078; font-size: 10px; letter-spacing: .7px; padding: 14px 16px; text-align: left; }
+	:global(.admin-main td) { border-bottom: 1px solid #f0f3f1; color: #46554b; font-size: 12px; line-height: 1.45; padding: 13px 16px; }
+	:global(.admin-main tbody tr) { transition: background .15s ease; }
+	:global(.admin-main tbody tr:hover) { background: #f8fbf9; }
+	:global(.admin-main td strong) { color: #35423a; font-size: 12px; font-weight: 650; }
+	:global(.admin-main td small) { color: #839087; font-size: 10px; margin-top: 4px; }
+	:global(#dialog-fields label) { color: #53645a; display: grid; font-size: 12px; font-weight: 550; gap: 7px; }
+	:global(#dialog-fields input), :global(#dialog-fields select) { background-color: #fff; border: 1px solid #dce5df; border-radius: 7px; color: #34463a; font-size: 13px; height: 42px; outline: 0; padding: 0 11px; transition: border-color .15s ease, box-shadow .15s ease; }
+	:global(#dialog-fields input:focus), :global(#dialog-fields select:focus) { border-color: #69a982; box-shadow: 0 0 0 3px #267a571a; }
+	:global(#dialog-fields input::placeholder) { color: #a0aca4; }
+	.primary:focus-visible, .cancel:focus-visible, .state-toggle:focus-visible, .edit-user:focus-visible, .delete-user:focus-visible, .disable-item:focus-visible { outline: 3px solid #267a5740; outline-offset: 2px; }
+	.table-wrap { background: white; border: 1px solid #e8eeea; border-radius: 8px; overflow-x: auto; }
+	table { border-collapse: collapse; min-width: 740px; text-align: left; width: 100%; }
+	th { background: #f8faf8; border-bottom: 1px solid #e9efeb; color: #718078; font-size: 10px; letter-spacing: .7px; padding: 14px 16px; text-align: left; }
+	td { border-bottom: 1px solid #f0f3f1; color: #46554b; font-size: 12px; line-height: 1.45; padding: 13px 16px; }
+	tbody tr { transition: background .15s ease; }
+	tbody tr:hover { background: #f8fbf9; }
+	tbody tr:last-child td { border-bottom: 0; }
+	td strong, td small { display: block; }
+	td strong { color: #35423a; font-size: 12px; font-weight: 650; }
+	td small { color: #839087; font-size: 10px; margin-top: 4px; }
+	td select { background: white; border: 1px solid #dce5df; border-radius: 6px; color: #405047; font-size: 11px; padding: 7px 9px; }
+	.state-toggle, .edit-user, .disable-item { background: #f2f4f3; border: 0; border-radius: 14px; color: #64736a; cursor: pointer; font-size: 10px; padding: 7px 11px; transition: background .15s ease, color .15s ease; }
+	.state-toggle.enabled { background: #edf7f0; color: #3d8057; }
+	.edit-user, .disable-item { background: transparent; border-radius: 5px; color: #28764f; font-size: 11px; }
+	.edit-user:hover, .disable-item:hover { background: #edf6f0; color: #1f6949; }
+	.dictionary-toolbar { background: #fff; border: 1px solid #e8eeea; border-radius: 9px; margin: 18px 0; padding: 17px; }
+	.import-upload { align-items: flex-end; background: #fff; border: 1px solid #e5ece7; border-radius: 10px; box-shadow: 0 3px 12px #17352608; display: flex; gap: 14px; margin: 18px 0; padding: 20px; }
+	.import-upload label { color: #4e6155; display: grid; font-size: 12px; font-weight: 600; gap: 8px; }
+	.import-upload input { background: #fff; border: 1px solid #dce5df; border-radius: 7px; color: #405047; font-size: 12px; min-height: 42px; padding: 8px 10px; min-width: min(440px, 55vw); }
+	.import-upload input::file-selector-button { background: #edf5ef; border: 0; border-radius: 5px; color: #28764f; cursor: pointer; font: inherit; margin-right: 10px; padding: 7px 10px; }
+	.import-table-wrap[hidden] { display: none; }
+	.import-actions { align-items: center; border-top: 1px solid #edf1ee; color: #7b877f; display: flex; font-size: 9px; gap: 9px; justify-content: flex-end; padding: 13px 14px; }
+	.import-actions span { margin-right: auto; }
+	.import-action, .import-target { background: white; border: 1px solid #dce5df; border-radius: 6px; color: #405047; font-size: 12px; max-width: 260px; padding: 8px 9px; }
+	.import-error { color: #a45046; }
+	.cancel { background: #fff; border: 1px solid #dce5df; border-radius: 7px; color: #526259; cursor: pointer; font-size: 12px; font-weight: 550; min-height: 42px; padding: 0 15px; transition: background .15s ease, border-color .15s ease; }
+	.cancel:hover { background: #f7faf8; border-color: #bdcec2; }
+	.dictionary-toolbar label { color: #4e6155; display: grid; font-size: 12px; font-weight: 600; gap: 8px; }
+	.dictionary-toolbar select, .audit-filters input, .audit-filters select { background: #fff; border: 1px solid #dce5df; border-radius: 7px; color: #34463a; font-size: 13px; height: 42px; outline: 0; padding: 0 11px; transition: border-color .15s ease, box-shadow .15s ease; }
+	.dictionary-toolbar select:focus, .audit-filters input:focus, .audit-filters select:focus, .import-upload input:focus { border-color: #69a982; box-shadow: 0 0 0 3px #267a571a; }
+	.audit-filters { align-items: end; background: #fff; border: 1px solid #e5ece7; border-radius: 10px; box-shadow: 0 3px 12px #17352608; display: grid; gap: 14px; grid-template-columns: minmax(130px, .65fr) minmax(210px, 1.2fr) minmax(180px, 1fr) minmax(150px, .8fr) minmax(150px, .8fr); margin: 20px 0 26px; padding: 19px; }
+	.audit-filters-heading { align-items: baseline; display: flex; gap: 12px; grid-column: 1 / -1; }
+	.audit-filters-heading strong, .audit-results-heading strong { color: #34483b; font-size: 14px; font-weight: 650; }
+	.audit-filters-heading span, .audit-results-heading span { color: #819087; font-size: 11px; }
+	.audit-filters label { color: #53645a; display: grid; font-size: 11px; font-weight: 600; gap: 7px; min-width: 0; }
+	.audit-filters input, .audit-filters select { min-width: 0; width: 100%; }
+	.audit-filters input::placeholder { color: #a0aca4; }
+	.audit-filter-actions { align-items: center; display: flex; gap: 8px; grid-column: 1 / -1; justify-content: flex-end; }
+	.audit-filter-actions .primary, .audit-filter-actions .cancel { min-height: 40px; }
+	.audit-results-heading { align-items: center; display: flex; justify-content: space-between; margin: 0 0 11px; }
+	.audit-table-wrap { max-height: min(62vh, 680px); overflow: auto; }
+	.audit-table { min-width: 820px; }
+	.audit-table thead { position: sticky; top: 0; z-index: 1; }
+	.audit-table th { white-space: nowrap; }
+	.audit-table td:first-child { color: #596a60; font-variant-numeric: tabular-nums; white-space: nowrap; }
+	.audit-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
+	.audit-action-label { color: #34483b; font-weight: 600; }
+	.audit-object-id { color: #87948c; font-size: 10px; }
+	.result-badge { border-radius: 20px; display: inline-flex; font-size: 10px; font-weight: 600; padding: 5px 9px; white-space: nowrap; }
+	.result-badge.success { background: #edf7f0; color: #39774f; }
+	.result-badge.failure { background: #fff1ef; color: #ac554d; }
+	.audit-table code { background: #f4f7f5; border-radius: 4px; color: #596a60; font-size: 11px; padding: 4px 6px; }
+	code { color: #52725d; font-size: 11px; }
+	.feedback { color: #a45046; font-size: 12px; min-height: 24px; padding: 12px 0; }
+	.feedback.visible { color: #54745f; }
+	dialog { border: 1px solid #e6ece8; border-radius: 10px; box-shadow: 0 20px 70px #10271c2b; max-width: min(430px, calc(100% - 28px)); padding: 24px; width: 430px; }
+	dialog::backdrop { background: #12251e70; backdrop-filter: blur(2px); }
+	dialog form { display: grid; gap: 13px; }
+	dialog h2 { color: #2d3932; font-size: 18px; margin: 0; }
+	.close { background: transparent; border: 0; color: #89958e; cursor: pointer; font-size: 23px; justify-self: end; line-height: 1; }
+	#dialog-fields { display: grid; gap: 11px; }
+	#dialog-fields label { color: #53645a; display: grid; font-size: 12px; font-weight: 550; gap: 7px; }
+	#dialog-fields input, #dialog-fields select { background: white; border: 1px solid #dce5df; border-radius: 7px; color: #34463a; font-size: 13px; height: 42px; outline: 0; padding: 0 11px; transition: border-color .15s ease, box-shadow .15s ease; }
+	#dialog-fields input:focus, #dialog-fields select:focus { border-color: #69a982; box-shadow: 0 0 0 3px #267a571a; }
+	#dialog-fields input::placeholder { color: #a0aca4; }
+	.form-actions { display: flex; gap: 9px; justify-content: flex-end; }
+	.cancel { background: #fff; border: 1px solid #e2e8e4; border-radius: 5px; color: #647169; cursor: pointer; font-size: 10px; padding: 0 13px; }
+	.form-error { background: #fff4f2; border: 1px solid #f4d9d4; border-radius: 7px; color: #a45046; font-size: 12px; padding: 11px 12px; }
+	.form-error[hidden] { display: none; }
+	@media (max-width: 1100px) {
+		.sidebar { width: 218px; }
+		.admin-main { margin-left: 218px; }
+		.admin-topbar { padding: 0 25px; }
+		.admin-content { padding-left: 25px; padding-right: 25px; }
+		.audit-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	}
+	@media (max-width: 760px) {
+		.sidebar { bottom: auto; height: 58px; overflow: hidden; padding: 9px 15px; right: 0; transition: width .24s ease, height .24s ease, border-radius .24s ease; width: 100%; }
+		:global(html.mobile-nav-open) .sidebar { bottom: 0; border-radius: 0 16px 16px 0; height: 100dvh; overflow-y: auto; padding: 20px 17px 16px; right: auto; width: min(320px, calc(100vw - 48px)); }
+		.sidebar-top { align-items: center; display: flex; justify-content: space-between; margin: 0; }
+		:global(html.mobile-nav-open) .sidebar-top { margin-bottom: 30px; }
+		.brand { margin: 0; }
+		.brand-mark { height: 34px; width: 34px; }
+		.brand-mark svg { height: 22px; width: 22px; }
+		.brand-copy strong { font-size: 17px; }
+		.workspace-label, .nav-list, .sidebar-bottom { display: none; }
+		:global(html.mobile-nav-open) .workspace-label { display: block; }
+		:global(html.mobile-nav-open) .nav-list { display: grid; }
+		:global(html.mobile-nav-open) .sidebar-bottom { display: block; margin-top: auto; padding-top: 28px; }
+		.admin-main { margin-left: 0; padding-top: 58px; }
+		.admin-topbar { height: 48px; padding: 0 16px; }
+		.admin-content { padding: 27px 15px; }
+		.heading { align-items: flex-start; gap: 15px; }
+		h1 { font-size: 25px; }
+		.hint { font-size: 12px; }
+		.audit-filters { gap: 12px; grid-template-columns: minmax(0, 1fr); padding: 15px; }
+		.audit-filters-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+		.audit-filter-actions { grid-column: 1; }
+		.audit-filter-actions > button { flex: 1; }
+		.audit-results-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+		.import-upload input { min-width: 0; width: 100%; }
+		.audit-filters label, .audit-filters input, .audit-filters select { width: 100%; }
+		.import-upload { align-items: stretch; flex-direction: column; }
+		.import-actions { align-items: stretch; flex-direction: column; }
+		.import-actions span { margin: 0 0 5px; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.nav-item, .nav-item::before, .nav-item svg, .logout-button { transition: none; }
+		.primary, .cancel, input, select, tbody tr { transition: none; }
+		.admin-content > *, .admin-content > *::before, .admin-content > *::after { animation: none !important; }
+	}
+
+	:global(html[data-theme="dark"]) body { background: #191e1b; color: #e3eae5; }
+	:global(html[data-theme="dark"]) .admin-topbar,
+	:global(html[data-theme="dark"]) .table-wrap,
+	:global(html[data-theme="dark"]) .audit-filters,
+	:global(html[data-theme="dark"]) .dictionary-toolbar,
+	:global(html[data-theme="dark"]) .import-upload { background-color: #252c28; border-color: #39443d; }
+	:global(html[data-theme="dark"]) .admin-topbar { border-bottom-color: #343d37; }
+	:global(html[data-theme="dark"]) .breadcrumbs strong,
+	:global(html[data-theme="dark"]) h1,
+	:global(html[data-theme="dark"]) .audit-filters-heading strong,
+	:global(html[data-theme="dark"]) .audit-results-heading strong,
+	:global(html[data-theme="dark"]) .audit-action-label,
+	:global(html[data-theme="dark"]) .profile-copy strong { color: #e5ede7; }
+	:global(html[data-theme="dark"]) .breadcrumbs,
+	:global(html[data-theme="dark"]) .hint,
+	:global(html[data-theme="dark"]) .audit-filters-heading span,
+	:global(html[data-theme="dark"]) .audit-results-heading span { color: #a0ada4; }
+	:global(html[data-theme="dark"]) th { background: #2d3530; border-bottom-color: #3b463f; color: #a5b1a9; }
+	:global(html[data-theme="dark"]) td { border-bottom-color: #343d37; color: #c8d1ca; }
+	:global(html[data-theme="dark"]) td strong { color: #e0e8e2; }
+	:global(html[data-theme="dark"]) td small,
+	:global(html[data-theme="dark"]) .audit-object-id { color: #9aa79e; }
+	:global(html[data-theme="dark"]) tbody tr:hover { background: #2b342e; }
+	:global(html[data-theme="dark"]) .audit-filters label,
+	:global(html[data-theme="dark"]) .dictionary-toolbar label,
+	:global(html[data-theme="dark"]) .import-upload label { color: #c1ccc4; }
+	:global(html[data-theme="dark"]) .admin-main input,
+	:global(html[data-theme="dark"]) .admin-main select { background-color: #1d2420; border-color: #455148; color: #e0e8e2; color-scheme: dark; }
+	:global(html[data-theme="dark"]) .admin-main input::placeholder { color: #829087; }
+	:global(html[data-theme="dark"]) .admin-main select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20'%3E%3Cpath d='m5 7 5 5 5-5' fill='none' stroke='%23a5b1a9' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+	:global(html[data-theme="dark"]) .admin-main input:focus,
+	:global(html[data-theme="dark"]) .admin-main select:focus { border-color: #77b28a; box-shadow: 0 0 0 3px #77b28a25; }
+	:global(html[data-theme="dark"]) .import-upload input::file-selector-button { background: #35463a; color: #d4ead9; }
+	:global(html[data-theme="dark"]) .cancel,
+	:global(html[data-theme="dark"]) .state-toggle { background-color: #303a34; border-color: #46534a; color: #d0d9d2; }
+	:global(html[data-theme="dark"]) .cancel:hover,
+	:global(html[data-theme="dark"]) .edit-user:hover,
+	:global(html[data-theme="dark"]) .disable-item:hover { background-color: #38483d; }
+	:global(html[data-theme="dark"]) .edit-user,
+	:global(html[data-theme="dark"]) .disable-item { color: #a6d7b3; }
+	:global(html[data-theme="dark"]) .state-toggle.enabled { background: #2c4835; color: #a6d7b3; }
+	:global(html[data-theme="dark"]) .result-badge.success { background: #2c4835; color: #a6d7b3; }
+	:global(html[data-theme="dark"]) .result-badge.failure { background: #4a302e; color: #f0aaa1; }
+	:global(html[data-theme="dark"]) .audit-table code { background: #303a34; color: #c1ccc4; }
+	:global(html[data-theme="dark"]) .storage-card { background: #202b25; }
+	:global(html[data-theme="dark"]) dialog { background: #252c28; border-color: #465149; color: #e3eae5; }
+	:global(html[data-theme="dark"]) dialog h2 { color: #e3eae5; }
+	:global(html[data-theme="dark"]) dialog::backdrop { background: #050907b8; }
+	:global(html[data-theme="dark"]) .form-error { background: #412e2c; border-color: #69413c; color: #f0aaa1; }
+	:global(html[data-theme="dark"]) .import-error { color: #f0aaa1; }
+	:global(html[data-theme="dark"]) .feedback.visible { color: #a6d7b3; }
+	:global(html[data-theme="dark"]) .primary { box-shadow: 0 2px 5px #0003; }
+	:global(html[data-theme="dark"]) .primary:hover { background: #31845e; }
+	:global(html[data-theme="dark"]) .admin-main ::selection { background: #397853; color: #fff; }
+	:global(html[data-theme="dark"]) .admin-main input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.82); }
+	:global(html[data-theme="dark"] .admin-main .role-select) { background-color: #1d2420; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 20 20'%3E%3Cpath d='m5 7 5 5 5-5' fill='none' stroke='%23a5b1a9' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); border-color: #455148; color: #e0e8e2; color-scheme: dark; }
+	:global(html[data-theme="dark"] .admin-main .state-toggle) { border-color: #46534a; }
+	:global(html[data-theme="dark"] .admin-main .state-toggle.enabled) { background: #2c4835; border-color: #42634b; color: #a6d7b3; }
+	:global(html[data-theme="dark"] .admin-main .state-toggle:not(.enabled)) { background: #48362d; border-color: #61483b; color: #e4b99b; }
+	:global(html[data-theme="dark"] .admin-main .edit-user) { background: #2c4835; border-color: #42634b; color: #b1dfbb; }
+	:global(html[data-theme="dark"] .admin-main .edit-user:hover) { background: #354f3d; }
+	:global(html[data-theme="dark"] .admin-main .delete-user) { background: #392523; border-color: #593633; color: #f0aaa1; }
+	:global(html[data-theme="dark"] .admin-main .delete-user:hover:not(:disabled)) { background: #4a2d2a; border-color: #70433e; }
+	:global(html[data-theme="dark"] .admin-main th) { background: #2d3530; border-bottom-color: #3b463f; color: #a5b1a9; }
+	:global(html[data-theme="dark"] .admin-main td) { border-bottom-color: #343d37; color: #c8d1ca; }
+	:global(html[data-theme="dark"] .admin-main tbody tr:hover) { background: #2b342e; }
+	:global(html[data-theme="dark"] .admin-main td strong) { color: #e0e8e2; }
+	:global(html[data-theme="dark"] .admin-main td small) { color: #9aa79e; }
+	:global(html[data-theme="dark"] #dialog-fields label) { color: #c1ccc4; }
+	:global(html[data-theme="dark"] #dialog-fields input),
+	:global(html[data-theme="dark"] #dialog-fields select) { background-color: #1d2420; border-color: #455148; color: #e0e8e2; color-scheme: dark; }
+	:global(html[data-theme="dark"] #dialog-fields input::placeholder) { color: #829087; }
+	@media (prefers-reduced-motion: reduce) {
+		.admin-main button { transition: none; }
+	}
+
+	@keyframes admin-arrive {
+		from { opacity: 0; transform: translateY(7px); }
+		to { opacity: 1; transform: translateY(0); }
+	}
+
+	.admin-content > .hint,
+	.admin-content > .table-wrap,
+	.admin-content > .dictionary-toolbar,
+	.admin-content > .audit-filters,
+	.admin-content > .import-upload {
+		animation: admin-arrive .4s cubic-bezier(.2, .75, .25, 1) 60ms both;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.admin-content > .heading, .admin-content > .hint, .admin-content > .table-wrap,
+		.admin-content > .dictionary-toolbar, .admin-content > .audit-filters,
+		.admin-content > .import-upload { animation: none !important; }
+	}
+</style>

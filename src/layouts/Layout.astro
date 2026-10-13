@@ -1,0 +1,219 @@
+---
+import { ClientRouter } from 'astro:transitions';
+
+interface Props {
+	title?: string;
+}
+
+const { title = 'НормАрхив — электронный архив документов' } = Astro.props;
+---
+<!doctype html>
+<html lang="ru">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#f7f8fa" />
+		<meta name="description" content="Электронный архив нормативных документов организации" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" href="/favicon.ico" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+		<ClientRouter />
+		<script is:inline>
+			try {
+				const savedTheme = localStorage.getItem('normarchive-theme');
+				if (savedTheme === 'dark' || savedTheme === 'light') {
+					document.documentElement.dataset.theme = savedTheme;
+				}
+				document.querySelector('meta[name="theme-color"]').content =
+					document.documentElement.dataset.theme === 'dark' ? '#090a0b' : '#f7f8fa';
+			} catch {
+				// Theme preference is optional when browser storage is unavailable.
+			}
+		</script>
+	</head>
+	<body>
+		<slot />
+		<script>
+			function syncThemeButtons() {
+				const dark = document.documentElement.dataset.theme === 'dark';
+				document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content = dark ? '#090a0b' : '#f7f8fa';
+				document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((button) => {
+					button.setAttribute('aria-pressed', String(dark));
+					button.setAttribute('aria-label', dark ? 'Включить светлую тему' : 'Включить тёмную тему');
+					button.title = dark ? 'Включить светлую тему' : 'Включить тёмную тему';
+				});
+			}
+			function restoreSavedTheme() {
+				try {
+					const savedTheme = localStorage.getItem('normarchive-theme');
+					if (savedTheme === 'dark' || savedTheme === 'light') {
+						document.documentElement.dataset.theme = savedTheme;
+					}
+				} catch {
+					// Keep the current theme when browser storage is unavailable.
+				}
+				syncThemeButtons();
+			}
+			restoreSavedTheme();
+			document.addEventListener('astro:page-load', restoreSavedTheme);
+			function setMobileNavigation(open: boolean, restoreFocus = false) {
+				document.documentElement.classList.toggle('mobile-nav-open', open);
+				document.querySelectorAll<HTMLButtonElement>('[data-mobile-menu-toggle]').forEach((button) => {
+					button.setAttribute('aria-expanded', String(open));
+					button.setAttribute('aria-label', open ? 'Закрыть меню' : 'Открыть меню');
+				});
+				if (!open && restoreFocus) document.querySelector<HTMLButtonElement>('[data-mobile-menu-toggle]')?.focus();
+			}
+			document.addEventListener('astro:page-load', () => setMobileNavigation(false));
+			document.addEventListener('click', (event) => {
+				if (!(event.target instanceof Element)) return;
+				const toggle = event.target.closest<HTMLButtonElement>('[data-mobile-menu-toggle]');
+				if (toggle) {
+					setMobileNavigation(document.documentElement.classList.contains('mobile-nav-open') === false);
+					return;
+				}
+				if (event.target.closest('[data-mobile-nav-close], .sidebar a')) setMobileNavigation(false);
+			});
+			document.addEventListener('keydown', (event) => {
+				if (event.key === 'Escape' && document.documentElement.classList.contains('mobile-nav-open')) {
+					setMobileNavigation(false, true);
+				}
+			});
+			document.addEventListener('click', (event) => {
+				if (!(event.target instanceof Element)) return;
+				const toggle = event.target.closest<HTMLButtonElement>('[data-theme-toggle]');
+				if (!toggle) return;
+				const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+				document.documentElement.dataset.theme = nextTheme;
+				try {
+					localStorage.setItem('normarchive-theme', nextTheme);
+				} catch {
+					// Keep the theme for the current page even if it cannot be persisted.
+				}
+				syncThemeButtons();
+			});
+		</script>
+	</body>
+</html>
+
+<style>
+	@view-transition {
+		navigation: auto;
+	}
+
+	::view-transition-old(root) {
+		animation: page-out .16s ease both;
+	}
+
+	::view-transition-new(root) {
+		animation: page-in .24s cubic-bezier(.2, .75, .25, 1) both;
+	}
+
+	html,
+	body {
+		margin: 0;
+		width: 100%;
+		height: 100%;
+	}
+
+	@keyframes page-out {
+		to { opacity: 0; }
+	}
+
+	@keyframes page-in {
+		from { opacity: 0; transform: translateY(5px); }
+		to { opacity: 1; transform: translateY(0); }
+	}
+
+	:global(dialog[open]) {
+		animation: dialog-in .2s cubic-bezier(.2, .75, .25, 1) both;
+	}
+
+	:global(dialog[open]::backdrop) {
+		animation: backdrop-in .18s ease both;
+	}
+
+
+	@keyframes dialog-in {
+		from { opacity: 0; transform: translateY(8px) scale(.985); }
+		to { opacity: 1; transform: translateY(0) scale(1); }
+	}
+
+	@keyframes backdrop-in {
+		from { background-color: rgb(15 24 19 / 0%); }
+		to { background-color: rgb(15 24 19 / 42%); }
+	}
+
+	:global(.theme-toggle) {
+		align-items: center;
+		background: #f5f8f6;
+		border: 1px solid #e1e9e4;
+		border-radius: 10px;
+		color: #426653;
+		cursor: pointer;
+		display: inline-flex;
+		height: 40px;
+		justify-content: center;
+		position: relative;
+		transition: background .2s ease, border-color .2s ease, color .2s ease, transform .2s ease;
+		width: 40px;
+	}
+
+	:global(.theme-toggle:hover) { background: #eaf3ed; border-color: #c9ddcf; transform: translateY(-1px); }
+	:global(.theme-toggle:focus-visible) { outline: 3px solid #75ad8a55; outline-offset: 2px; }
+	:global(.theme-toggle svg) { fill: none; height: 19px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; width: 19px; }
+	:global(.theme-toggle .moon-icon) { display: none; }
+	:global(html[data-theme="dark"] .theme-toggle) { background: #303a34; border-color: #46534a; color: #c4dfcc; }
+	:global(html[data-theme="dark"] .theme-toggle:hover) { background: #3a473f; border-color: #5e7967; }
+	:global(html[data-theme="dark"] .theme-toggle .sun-icon) { display: none; }
+	:global(html[data-theme="dark"] .theme-toggle .moon-icon) { display: block; }
+
+	:global(.mobile-menu-toggle) {
+		align-items: center;
+		background: #203832;
+		border: 1px solid #355048;
+		border-radius: 9px;
+		color: #dceae2;
+		cursor: pointer;
+		display: none;
+		height: 40px;
+		justify-content: center;
+		width: 40px;
+	}
+
+	:global(.mobile-menu-toggle svg) {
+		fill: none;
+		height: 20px;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-width: 1.7;
+		width: 20px;
+	}
+
+	:global(.mobile-menu-toggle:focus-visible) { outline: 3px solid #a7d5bc; outline-offset: 2px; }
+	:global(.mobile-nav-backdrop) { background: rgb(12 22 17 / 48%); border: 0; display: none; inset: 0; position: fixed; z-index: 2; }
+	:global(html.mobile-nav-open) { overflow: hidden; }
+	:global(html.mobile-nav-open .mobile-nav-backdrop) { animation: backdrop-in .2s ease both; display: block; }
+
+	@media (max-width: 760px) {
+		:global(.mobile-menu-toggle) { display: inline-flex; }
+		:global(html) { overflow-x: clip; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		:global(.theme-toggle) { transition: none; }
+		:global(.mobile-menu-toggle), :global(.mobile-nav-backdrop) { transition: none; }
+		:global(.sidebar) { transition: none; }
+		:global(html.mobile-nav-open .mobile-nav-backdrop) { animation: none; }
+		:global(dialog[open]),
+		:global(dialog[open]::backdrop) { animation: none; }
+		::view-transition-group(*),
+		::view-transition-old(*),
+		::view-transition-new(*) {
+			animation-duration: 0s !important;
+		}
+		@keyframes page-out { to { opacity: 1; } }
+		@keyframes page-in { to { opacity: 1; transform: none; } }
+	}
+</style>
