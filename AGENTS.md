@@ -1,3 +1,9 @@
+## Interface style
+
+- Use the shared `public/workspace-sidebar.css` styles for workspace pages such as the catalog, templates, and profile. Add `workspace-shell` to the page wrapper and `workspace-sidebar` to its sidebar. Keep the sidebar light in the default theme and consistent with the existing dark-theme treatment.
+- Keep administration pages on their existing green sidebar style.
+- Apply the workspace or administration style consistently to any new page, based on its role.
+
 ## Development
 
 When starting the dev server, use background mode:

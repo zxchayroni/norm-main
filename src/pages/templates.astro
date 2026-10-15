@@ -1,0 +1,399 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const currentUser = Astro.locals.user;
+if (!currentUser) return Astro.redirect('/login');
+
+const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase('ru') ?? '').join('');
+const roleLabels = { admin: 'Администратор', editor: 'Редактор', reader: 'Читатель' } as const;
+---
+
+<Layout title="Шаблоны документов — НормАрхив">
+	<div class="templates-shell workspace-shell">
+		<aside id="workspace-sidebar" class="sidebar workspace-sidebar" aria-label="Основная навигация" transition:name="app-sidebar">
+			<div class="sidebar-top">
+				<a class="brand" href="/" aria-label="НормАрхив — главная"><img class="brand-logo" src="/logo.png" alt="" /></a>
+				<button class="mobile-menu-toggle" type="button" data-mobile-menu-toggle aria-expanded="false" aria-label="Открыть меню">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
+				</button>
+			</div>
+			<div class="workspace-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+			<nav class="nav-list" aria-label="Рабочее пространство">
+				<a class="nav-item" href="/">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3.5" width="14" height="13" rx="2"/><path d="M3.5 8h13M8 8v8"/></svg>
+					<span>Каталог документов</span>
+				</a>
+				<a class="nav-item selected" href="/templates" aria-current="page">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.8h7l4 4v10.4H5V2.8Z"/><path d="M12 3v4h4M8 11h5M8 14h5"/></svg>
+					<span>Шаблоны документов</span>
+				</a>
+				<a class="nav-item" href="/knowledge-base">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3.5h12v13H4zM7 7h6M7 10h6M7 13h4"/></svg>
+					<span>База знаний</span>
+				</a>
+			</nav>
+			{currentUser.role === 'admin' && (
+				<>
+					<div class="workspace-label nav-section-label">УПРАВЛЕНИЕ</div>
+					<nav class="nav-list" aria-label="Управление">
+						<a class="nav-item" href="/admin/import"><span>Импорт документов</span></a>
+						<a class="nav-item" href="/admin/users"><span>Подразделения, пользователи и роли</span></a>
+						<a class="nav-item" href="/admin/audit"><span>Журнал действий</span></a>
+						<a class="nav-item" href="/admin/dictionaries"><span>Настройки</span></a>
+					</nav>
+				</>
+			)}
+			<div class="sidebar-bottom">
+				<div class="storage-card">
+					<div class="storage-heading"><span>Диск</span><span data-storage-percent>Загрузка…</span></div>
+					<div class="storage-track" role="progressbar" aria-label="Занято на диске сервера" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span data-storage-meter></span></div>
+					<div class="storage-caption" data-storage-caption>Загружаем данные о хранилище…</div>
+				</div>
+				<a class="profile" href="/profile" aria-label="Открыть личный кабинет">
+					<span class="avatar" data-profile-initials>{userInitials}</span>
+					<span class="profile-copy"><strong data-profile-name>{currentUser.fullName}</strong><small>{roleLabels[currentUser.role]}</small></span>
+					<svg class="profile-more" viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1"/><circle cx="10" cy="10" r="1"/><circle cx="16" cy="10" r="1"/></svg>
+				</a>
+				<button class="logout-button" id="logout-button" type="button">Выйти из системы</button>
+			</div>
+		</aside>
+		<button class="mobile-nav-backdrop" type="button" data-mobile-nav-close aria-label="Закрыть меню"></button>
+		<main class="templates-main" data-user-role={currentUser.role} transition:name="app-content">
+			<header class="topbar">
+				<div class="breadcrumbs"><a href="/">Рабочее пространство</a><span>/</span><strong>Шаблоны документов</strong></div>
+				<button class="theme-toggle" type="button" data-theme-toggle aria-label="Включить тёмную тему" title="Включить тёмную тему" aria-pressed="false">
+					<svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+					<svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></svg>
+				</button>
+			</header>
+			<section class="templates-content">
+				<div class="page-heading">
+					<div><p>РАБОЧЕЕ ПРОСТРАНСТВО</p><h1>Шаблоны документов</h1><span>Файлы шаблонов хранятся отдельно от основного каталога документов.</span></div>
+					{currentUser.role !== 'reader' && <button class="primary-button" id="show-upload" type="button">＋ Прикрепить документ</button>}
+				</div>
+				{currentUser.role !== 'reader' && (
+					<form class="upload-panel" id="template-upload-form" hidden>
+						<label>Выберите документ (DOCX, XLSX или PDF, до 100 МБ)
+							<input name="file" type="file" required accept=".docx,.xlsx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+						</label>
+						<div class="upload-actions">
+							<span class="form-error" id="upload-error" role="alert" hidden></span>
+							<button class="secondary-button" id="cancel-upload" type="button">Отмена</button>
+							<button class="primary-button" type="submit">Загрузить</button>
+						</div>
+					</form>
+				)}
+				<div class="template-table-wrap">
+					<table>
+						<thead><tr><th>ДОКУМЕНТ</th><th>РАЗМЕР</th><th>ДОБАВЛЕН</th><th>ДОБАВИЛ</th><th><span class="sr-only">Действия</span></th></tr></thead>
+						<tbody id="template-rows"></tbody>
+					</table>
+					<div class="empty-state" id="template-empty" hidden>
+						<strong>Шаблонов пока нет</strong>
+						<span>Добавленные файлы будут доступны здесь и не попадут в основной каталог.</span>
+					</div>
+					<div class="load-error" id="template-error" role="alert" hidden></div>
+				</div>
+			</section>
+		</main>
+	</div>
+	<div class="toast" id="template-toast" role="status" aria-live="polite"></div>
+</Layout>
+
+<script>
+	document.addEventListener('astro:page-load', () => {
+		const rows = document.querySelector<HTMLTableSectionElement>('#template-rows');
+		if (!rows) return;
+		const form = document.querySelector<HTMLFormElement>('#template-upload-form');
+		const showUpload = document.querySelector<HTMLButtonElement>('#show-upload');
+		const empty = document.querySelector<HTMLElement>('#template-empty')!;
+		const loadError = document.querySelector<HTMLElement>('#template-error')!;
+		const toast = document.querySelector<HTMLElement>('#template-toast')!;
+		const storagePercent = document.querySelector<HTMLElement>('[data-storage-percent]')!;
+		const storageCaption = document.querySelector<HTMLElement>('[data-storage-caption]')!;
+		const storageTrack = document.querySelector<HTMLElement>('.storage-track')!;
+		const storageMeter = document.querySelector<HTMLElement>('[data-storage-meter]')!;
+		let toastTimeout = 0;
+
+		function notify(message: string) {
+			toast.textContent = message;
+			toast.classList.add('visible');
+			window.clearTimeout(toastTimeout);
+			toastTimeout = window.setTimeout(() => toast.classList.remove('visible'), 3000);
+		}
+
+		document.querySelector<HTMLButtonElement>('#logout-button')?.addEventListener('click', async () => {
+			try {
+				const response = await fetch('/api/auth/logout', { method: 'POST' });
+				if (response.status === 503) {
+					window.location.assign('/login?logout=partial');
+					return;
+				}
+				if (!response.ok) throw new Error('Сервер не подтвердил завершение сессии.');
+				window.location.assign('/login');
+			} catch {
+				notify('Не удалось завершить сеанс. Проверьте соединение и повторите попытку.');
+			}
+		});
+
+		function formatSize(value: string | number): string {
+			const size = Number(value);
+			if (!Number.isFinite(size) || size < 0) return 'Размер неизвестен';
+			if (size < 1024 * 1024) return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(size / 1024)} КБ`;
+			return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(size / (1024 * 1024))} МБ`;
+		}
+
+		function formatDate(value: string): string {
+			const date = new Date(value);
+			return Number.isNaN(date.valueOf()) ? value : new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+		}
+
+		function formatStorageBytes(bytes: number): string {
+			if (bytes < 1024) return `${bytes} Б`;
+			const units = ['КБ', 'МБ', 'ГБ', 'ТБ', 'ПБ'];
+			let value = bytes / 1024;
+			let unit = 0;
+			while (value >= 1024 && unit < units.length - 1) {
+				value /= 1024;
+				unit++;
+			}
+			return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(value)} ${units[unit]}`;
+		}
+
+		async function loadStorageUsage() {
+			try {
+				const response = await fetch('/api/storage/usage');
+				const payload = await response.json() as {
+					archiveBytes?: number; freeBytes?: number; usedPercent?: number; error?: string;
+				};
+				if (!response.ok || payload.archiveBytes === undefined || payload.freeBytes === undefined || payload.usedPercent === undefined) {
+					throw new Error(payload.error ?? `Ошибка сервера (${response.status}).`);
+				}
+				storagePercent.textContent = `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(payload.usedPercent)}%`;
+				storageCaption.textContent = `Архив: ${formatStorageBytes(payload.archiveBytes)} · Свободно: ${formatStorageBytes(payload.freeBytes)}`;
+				storageMeter.style.width = `${payload.usedPercent}%`;
+				storageTrack.setAttribute('aria-valuenow', String(payload.usedPercent));
+				storageTrack.setAttribute('aria-valuetext', `${payload.usedPercent}% диска занято`);
+			} catch (error) {
+				console.error('Не удалось загрузить сведения о хранилище:', error);
+				storagePercent.textContent = 'Недоступно';
+				storageCaption.textContent = error instanceof Error ? error.message : 'Не удалось получить сведения о хранилище.';
+				storageTrack.setAttribute('aria-valuetext', 'Сведения о диске недоступны');
+			}
+		}
+
+		async function loadTemplates() {
+			loadError.hidden = true;
+			try {
+				const response = await fetch('/api/templates');
+				const result = await response.json() as {
+					templates?: Array<{ id: string; originalName: string; size: string; uploadedAt: string; uploadedBy: string }>;
+					canDelete?: boolean;
+					error?: string;
+				};
+				if (!response.ok || !Array.isArray(result.templates)) throw new Error(result.error ?? 'Не удалось загрузить шаблоны.');
+				rows.replaceChildren();
+				for (const template of result.templates) {
+					const row = document.createElement('tr');
+					const nameCell = document.createElement('td');
+					nameCell.className = 'template-name';
+					const name = document.createElement('strong');
+					name.textContent = template.originalName;
+					nameCell.append(name);
+					const sizeCell = document.createElement('td');
+					sizeCell.textContent = formatSize(template.size);
+					const dateCell = document.createElement('td');
+					dateCell.textContent = formatDate(template.uploadedAt);
+					const userCell = document.createElement('td');
+					userCell.textContent = template.uploadedBy;
+					const actions = document.createElement('td');
+					actions.className = 'actions';
+					const download = document.createElement('a');
+					download.className = 'action-link';
+					download.href = `/api/templates/${encodeURIComponent(template.id)}/download`;
+					download.textContent = 'Скачать';
+					actions.append(download);
+					if (result.canDelete) {
+						const remove = document.createElement('button');
+						remove.className = 'action-link delete-link';
+						remove.type = 'button';
+						remove.textContent = 'Удалить';
+						remove.addEventListener('click', async () => {
+							if (!window.confirm(`Удалить шаблон «${template.originalName}»?`)) return;
+							try {
+								const deleted = await fetch(`/api/templates/${encodeURIComponent(template.id)}`, {
+									method: 'DELETE',
+									headers: { 'content-type': 'application/json' },
+								});
+								if (!deleted.ok) {
+									const error = await deleted.json() as { error?: string };
+									throw new Error(error.error ?? 'Не удалось удалить шаблон.');
+								}
+								await loadTemplates();
+								notify('Шаблон удалён.');
+							} catch (error) {
+								notify(error instanceof Error ? error.message : 'Не удалось удалить шаблон.');
+							}
+						});
+						actions.append(remove);
+					}
+					row.append(nameCell, sizeCell, dateCell, userCell, actions);
+					rows.append(row);
+				}
+				empty.hidden = result.templates.length > 0;
+			} catch (error) {
+				loadError.textContent = error instanceof Error ? error.message : 'Не удалось загрузить шаблоны.';
+				loadError.hidden = false;
+			}
+		}
+
+		showUpload?.addEventListener('click', () => {
+			form!.hidden = false;
+			form!.querySelector<HTMLInputElement>('input[type="file"]')!.focus();
+		});
+		document.querySelector<HTMLButtonElement>('#cancel-upload')?.addEventListener('click', () => {
+			form!.reset();
+			form!.hidden = true;
+			document.querySelector<HTMLElement>('#upload-error')!.hidden = true;
+		});
+		form?.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			const errorElement = document.querySelector<HTMLElement>('#upload-error')!;
+			errorElement.hidden = true;
+			const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+			const file = form.querySelector<HTMLInputElement>('input[type="file"]')!.files?.[0];
+			if (!file) {
+				errorElement.textContent = 'Выберите документ для загрузки.';
+				errorElement.hidden = false;
+				return;
+			}
+			submit.disabled = true;
+			try {
+				const data = new FormData();
+				data.append('file', file);
+				const response = await fetch('/api/templates', { method: 'POST', body: data });
+				const result = await response.json() as { error?: string };
+				if (!response.ok) throw new Error(result.error ?? 'Не удалось загрузить шаблон.');
+				form.reset();
+				form.hidden = true;
+				await loadTemplates();
+				notify('Шаблон добавлен.');
+			} catch (error) {
+				errorElement.textContent = error instanceof Error ? error.message : 'Не удалось загрузить шаблон.';
+				errorElement.hidden = false;
+			} finally {
+				submit.disabled = false;
+			}
+		});
+		void loadTemplates();
+		void loadStorageUsage();
+	});
+</script>
+
+<style>
+	:global(*) { box-sizing: border-box; }
+	:global(body) { background: #f7f8fa; color: #26332c; font-family: Inter, "Segoe UI", Arial, sans-serif; margin: 0; min-width: 360px; }
+	.templates-shell { min-height: 100vh; }
+	.sidebar { background: #172a27; bottom: 0; color: #e8f0ed; display: flex; flex-direction: column; left: 0; padding: 27px 17px 16px; position: fixed; top: 0; width: 252px; z-index: 3; }
+	.sidebar-top { align-items: center; display: flex; justify-content: center; }
+	.brand { align-items: center; color: inherit; display: flex; justify-content: center; margin: 0 0 32px; text-decoration: none; width: 100%; }
+	.brand-logo { display: block; height: 168px; object-fit: contain; width: 100%; }
+	.workspace-label { color: #81928d; font-size: 9px; font-weight: 700; letter-spacing: 1.15px; margin: 0 10px 12px; }
+	.nav-list { display: grid; gap: 4px; }
+	.nav-item { align-items: center; background: transparent; border: 0; border-radius: 8px; color: #afbfba; display: flex; font-size: 12px; gap: 11px; min-height: 41px; padding: 0 10px; position: relative; text-decoration: none; transition: background .2s ease, color .2s ease; }
+	.nav-item:hover, .nav-item.selected { background: #2b4940; color: #f6fbf8; }
+	.nav-item.selected { font-weight: 600; }
+	.nav-item svg { fill: none; flex: 0 0 17px; height: 17px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.35; width: 17px; }
+	.nav-section-label { margin-top: 30px; }
+	.sidebar-bottom { margin-top: auto; }
+	.profile { align-items: center; border-top: 1px solid #30423e; color: inherit; display: flex; gap: 9px; min-height: 48px; padding: 8px 10px; text-decoration: none; }
+	.avatar { align-items: center; background: #d3e7dd; border-radius: 50%; color: #235942; display: flex; flex: 0 0 30px; font-size: 9px; font-weight: 700; height: 30px; justify-content: center; width: 30px; }
+	.profile-copy { display: grid; gap: 3px; min-width: 0; }
+	.profile-copy strong { color: #e5ece9; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.profile-copy small { color: #91a29d; font-size: 9px; }
+	.profile-more { fill: #9fb0aa; height: 17px; margin-left: auto; width: 17px; }
+	.logout-button { background: transparent; border: 0; color: #9aaba4; cursor: pointer; font-size: 9px; margin: 10px 0 0 41px; padding: 2px 0; text-align: left; }
+	.templates-main { margin-left: 252px; min-height: 100vh; }
+	.topbar { align-items: center; background: #fff; border-bottom: 1px solid #edf0f2; display: flex; height: 62px; justify-content: space-between; padding: 0 38px; }
+	.breadcrumbs { align-items: center; color: #8a949f; display: flex; font-size: 11px; gap: 10px; }
+	.breadcrumbs a { color: inherit; text-decoration: none; }
+	.breadcrumbs strong { color: #394552; font-weight: 600; }
+	.theme-toggle { align-items: center; background: #f6f8f7; border: 1px solid #e8ece9; border-radius: 8px; cursor: pointer; display: flex; height: 34px; justify-content: center; padding: 0; width: 34px; }
+	.theme-toggle svg { fill: none; height: 16px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; width: 16px; }
+	.theme-toggle .moon-icon { display: none; }
+	.templates-content { margin: 0 auto; max-width: 1300px; padding: 42px 38px; }
+	.page-heading { align-items: flex-end; display: flex; gap: 20px; justify-content: space-between; margin-bottom: 26px; }
+	.page-heading p { color: #62806e; font-size: 10px; font-weight: 700; letter-spacing: 1.3px; margin: 0 0 9px; }
+	h1 { color: #23352b; font-size: 30px; letter-spacing: -.7px; margin: 0 0 10px; }
+	.page-heading span { color: #76847b; font-size: 13px; }
+	.primary-button, .secondary-button { border-radius: 7px; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; min-height: 40px; padding: 0 15px; }
+	.primary-button { background: #267a57; border: 1px solid #267a57; box-shadow: 0 2px 4px #236e5018; color: white; transition: background .15s ease, transform .15s ease; }
+	.primary-button:hover { background: #1f6949; transform: translateY(-1px); }
+	.secondary-button { background: #fff; border: 1px solid #dce5df; color: #526259; }
+	.upload-panel, .template-table-wrap { background: #fff; border: 1px solid #e8eeea; border-radius: 9px; }
+	.upload-panel { display: grid; gap: 14px; margin-bottom: 18px; padding: 18px; }
+	.upload-panel[hidden] { display: none; }
+	.upload-panel label { color: #53645a; display: grid; font-size: 12px; font-weight: 600; gap: 8px; }
+	.upload-panel input { border: 1px solid #dce5df; border-radius: 7px; color: #405047; font: inherit; font-size: 12px; min-height: 42px; padding: 8px 10px; }
+	.upload-panel input::file-selector-button { background: #edf5ef; border: 0; border-radius: 5px; color: #28764f; cursor: pointer; font: inherit; margin-right: 10px; padding: 7px 10px; transition: background .15s ease, color .15s ease; }
+	.upload-panel input::file-selector-button:hover { background: #dceee1; color: #1f6949; }
+	.upload-panel input:focus-visible { outline: 3px solid #267a5740; outline-offset: 2px; }
+	.upload-actions { align-items: center; display: flex; gap: 10px; justify-content: flex-end; }
+	.form-error, .load-error { color: #b23f35; font-size: 12px; margin-right: auto; }
+	.template-table-wrap { overflow-x: auto; }
+	table { border-collapse: collapse; min-width: 700px; text-align: left; width: 100%; }
+	th { background: #f8faf8; border-bottom: 1px solid #e9efeb; color: #718078; font-size: 10px; letter-spacing: .7px; padding: 14px 16px; }
+	td { border-bottom: 1px solid #f0f3f1; color: #46554b; font-size: 12px; padding: 13px 16px; }
+	tbody tr:last-child td { border-bottom: 0; }
+	.template-name strong { color: #35423a; font-size: 12px; font-weight: 650; overflow-wrap: anywhere; }
+	.actions { text-align: right; white-space: nowrap; }
+	.action-link { background: transparent; border: 0; color: #28764f; cursor: pointer; font: inherit; font-size: 11px; margin-left: 12px; text-decoration: none; }
+	.action-link:hover { color: #1f6949; text-decoration: underline; }
+	.delete-link { color: #a34039; }
+	.empty-state { align-items: center; color: #839087; display: flex; flex-direction: column; font-size: 12px; gap: 8px; padding: 42px 20px; text-align: center; }
+	.empty-state strong { color: #46554b; font-size: 14px; }
+	.load-error { padding: 18px; }
+	.load-error[hidden], .form-error[hidden] { display: none; }
+	.sr-only { clip: rect(0, 0, 0, 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
+	.toast { background: #253b31; border-radius: 8px; bottom: 24px; color: white; font-size: 12px; left: 50%; opacity: 0; padding: 11px 16px; pointer-events: none; position: fixed; transform: translate(-50%, 10px); transition: opacity .2s ease, transform .2s ease; z-index: 10; }
+	.toast.visible { opacity: 1; transform: translate(-50%, 0); }
+	:global(html[data-theme="dark"]) body { background: #191e1b; color: #e0e8e2; }
+	:global(html[data-theme="dark"]) .topbar, :global(html[data-theme="dark"]) .upload-panel, :global(html[data-theme="dark"]) .template-table-wrap { background: #242c27; border-color: #3b463f; }
+	:global(html[data-theme="dark"]) .breadcrumbs strong, :global(html[data-theme="dark"]) h1 { color: #e5ede7; }
+	:global(html[data-theme="dark"]) .page-heading span, :global(html[data-theme="dark"]) td { color: #c1ccc4; }
+	:global(html[data-theme="dark"]) th { background: #202722; border-color: #3b463f; color: #a7b3aa; }
+	:global(html[data-theme="dark"]) td { border-color: #303a34; }
+	:global(html[data-theme="dark"]) .template-name strong, :global(html[data-theme="dark"]) .empty-state strong { color: #e0e8e2; }
+	:global(html[data-theme="dark"]) .upload-panel label { color: #c1ccc4; }
+	:global(html[data-theme="dark"]) .upload-panel input { background: #1d2420; border-color: #455148; color: #e0e8e2; color-scheme: dark; }
+	:global(html[data-theme="dark"]) .upload-panel input::file-selector-button { background: #35463a; color: #d4ead9; }
+	:global(html[data-theme="dark"]) .upload-panel input::file-selector-button:hover { background: #405644; color: #eff8f0; }
+	:global(html[data-theme="dark"]) .secondary-button { background: #303a34; border-color: #46534a; color: #d0d9d2; }
+	:global(html[data-theme="dark"]) .theme-toggle { background: #303a34; border-color: #46534a; color: #d0d9d2; }
+	:global(html[data-theme="dark"]) .theme-toggle .sun-icon { display: none; }
+	:global(html[data-theme="dark"]) .theme-toggle .moon-icon { display: block; }
+	@media (max-width: 1100px) {
+		.sidebar { width: 218px; }
+		.templates-main { margin-left: 218px; }
+		.topbar { padding: 0 25px; }
+		.templates-content { padding-left: 25px; padding-right: 25px; }
+	}
+	@media (max-width: 760px) {
+		.sidebar { bottom: auto; height: 58px; overflow: hidden; padding: 9px 15px; right: 0; transition: width .24s ease, height .24s ease; width: 100%; }
+		:global(html.mobile-nav-open) .sidebar { bottom: 0; height: 100dvh; overflow-y: auto; padding: 20px 17px 16px; right: auto; width: min(320px, calc(100vw - 48px)); }
+		.sidebar-top { justify-content: space-between; }
+		:global(html.mobile-nav-open) .sidebar-top { margin-bottom: 30px; }
+		.brand { margin-bottom: 20px; width: auto; }
+		.brand-logo { height: 128px; }
+		.workspace-label, .nav-list, .sidebar-bottom { display: none; }
+		:global(html.mobile-nav-open) .workspace-label { display: block; }
+		:global(html.mobile-nav-open) .nav-list { display: grid; }
+		:global(html.mobile-nav-open) .sidebar-bottom { display: block; margin-top: auto; padding-top: 28px; }
+		.templates-main { margin-left: 0; padding-top: 58px; }
+		.topbar { height: 48px; padding: 0 16px; }
+		.templates-content { padding: 28px 15px 40px; }
+		.page-heading { align-items: flex-start; flex-direction: column; }
+		.page-heading h1 { font-size: 25px; }
+		.page-heading .primary-button { width: 100%; }
+	}
+</style>

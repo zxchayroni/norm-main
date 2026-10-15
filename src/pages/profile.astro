@@ -26,8 +26,8 @@ const userInitials = account.fullName.split(/\s+/).slice(0, 2).map((part) => par
 ---
 
 <Layout title="Личный кабинет — НормАрхив">
-	<div class="profile-layout">
-		<aside class="sidebar" aria-label="Основная навигация" transition:name="app-sidebar">
+	<div class="profile-layout workspace-shell">
+		<aside id="workspace-sidebar" class="sidebar workspace-sidebar" aria-label="Основная навигация" transition:name="app-sidebar">
 			<div class="sidebar-top">
 				<a class="brand" href="/" aria-label="НормАрхив — главная">
 					<img class="brand-logo" src="/logo.png" alt="" />
@@ -42,13 +42,13 @@ const userInitials = account.fullName.split(/\s+/).slice(0, 2).map((part) => par
 					<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3.5" width="14" height="13" rx="2"/><path d="M3.5 8h13M8 8v8"/></svg>
 					<span>Каталог документов</span>
 				</a>
-				<a class="nav-item" href="/#catalog">
-					<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.6 1.7"/></svg>
-					<span>Недавние</span>
+				<a class="nav-item" href="/templates">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.8h7l4 4v10.4H5V2.8Z"/><path d="M12 3v4h4M8 11h5M8 14h5"/></svg>
+					<span>Шаблоны документов</span>
 				</a>
-				<a class="nav-item" href="/#catalog">
-					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2.8 2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7L10 2.8Z"/></svg>
-					<span>Избранное</span>
+				<a class="nav-item" href="/knowledge-base">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3.5h12v13H4zM7 7h6M7 10h6M7 13h4"/></svg>
+					<span>База знаний</span>
 				</a>
 			</nav>
 			{currentUser.role === 'admin' && (

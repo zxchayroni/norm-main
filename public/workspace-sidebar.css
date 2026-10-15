@@ -1,0 +1,53 @@
+#workspace-sidebar {
+	background: #fff;
+	border-right: 1px solid #e9ecef;
+	color: #303943;
+	padding: 25px 16px 16px;
+}
+
+#workspace-sidebar .workspace-label { color: #929ba3; }
+#workspace-sidebar .nav-item { color: #68737c; }
+#workspace-sidebar .nav-item::before { background: #38845f; }
+#workspace-sidebar .nav-item:hover { background: #f3f6f4; color: #202a33; }
+#workspace-sidebar .nav-item.selected { background: #eef5f0; color: #286c49; }
+#workspace-sidebar .nav-item:focus-visible,
+#workspace-sidebar .logout-button:focus-visible,
+#workspace-sidebar .profile:focus-visible { outline: 2px solid #69a982; }
+#workspace-sidebar .nav-count { background: #edf0f2; color: #65717b; }
+#workspace-sidebar .nav-item.selected .nav-count { background: #d6e9dc; color: #286c49; }
+#workspace-sidebar .storage-card { background: #f7f9f8; border: 1px solid #e8eeea; border-radius: 9px; margin: 0 2px 15px; padding: 12px 12px 11px; }
+#workspace-sidebar .storage-heading { color: #44524a; display: flex; font-size: 10px; font-weight: 600; justify-content: space-between; }
+#workspace-sidebar .storage-heading span:last-child { color: #38845f; }
+#workspace-sidebar .storage-track { background: #e4eae6; border-radius: 6px; height: 5px; margin: 10px 0 7px; overflow: hidden; }
+#workspace-sidebar .storage-track span { background: #5eaa7c; border-radius: inherit; display: block; height: 100%; transition: width .35s ease; }
+#workspace-sidebar .storage-caption { color: #8c9790; font-size: 9px; }
+#workspace-sidebar .profile { border-top-color: #e9ecef; }
+#workspace-sidebar .profile:hover { background: #f4f7f5; }
+#workspace-sidebar .profile-copy strong { color: #35413a; }
+#workspace-sidebar .profile-copy small { color: #8c9790; }
+#workspace-sidebar .profile-more { fill: #89948d; }
+#workspace-sidebar .logout-button { color: #87918a; }
+#workspace-sidebar .logout-button:hover { color: #37473d; }
+
+html[data-theme="dark"] #workspace-sidebar {
+	background: #0b0c0d;
+	border-right-color: #222527;
+	color: #e6e9e7;
+}
+html[data-theme="dark"] #workspace-sidebar .workspace-label { color: #858d89; }
+html[data-theme="dark"] #workspace-sidebar .nav-item { color: #a4aaa7; }
+html[data-theme="dark"] #workspace-sidebar .nav-item:hover { background: #191c1a; color: #fff; }
+html[data-theme="dark"] #workspace-sidebar .nav-item.selected { background: #1d2922; color: #e9f3ec; }
+html[data-theme="dark"] #workspace-sidebar .nav-count { background: #202522; color: #b2bbb5; }
+html[data-theme="dark"] #workspace-sidebar .nav-item.selected .nav-count { background: #354f3e; color: #c5e6ce; }
+html[data-theme="dark"] #workspace-sidebar .storage-card { background: #111413; border-color: #252a27; }
+html[data-theme="dark"] #workspace-sidebar .storage-heading { color: #d2d8d4; }
+html[data-theme="dark"] #workspace-sidebar .storage-heading span:last-child { color: #b0d7ba; }
+html[data-theme="dark"] #workspace-sidebar .storage-track { background: #303833; }
+html[data-theme="dark"] #workspace-sidebar .profile { border-top-color: #252a27; }
+html[data-theme="dark"] #workspace-sidebar .profile:hover { background: #171b18; }
+html[data-theme="dark"] #workspace-sidebar .profile-copy strong { color: #e2e7e3; }
+html[data-theme="dark"] #workspace-sidebar .profile-copy small { color: #9aa39d; }
+html[data-theme="dark"] #workspace-sidebar .profile-more { fill: #a5ada8; }
+html[data-theme="dark"] #workspace-sidebar .logout-button { color: #9aa39d; }
+html[data-theme="dark"] #workspace-sidebar .logout-button:hover { color: #f1f4f2; }

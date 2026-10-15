@@ -17,8 +17,8 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 ---
 
 <Layout>
-	<div class="app-shell">
-		<aside class="sidebar" aria-label="Основная навигация" transition:name="app-sidebar">
+	<div class="app-shell workspace-shell">
+		<aside id="workspace-sidebar" class="sidebar workspace-sidebar" aria-label="Основная навигация" transition:name="app-sidebar">
 			<div class="sidebar-top">
 				<a class="brand" href="/" aria-label="НормАрхив — главная">
 					<img class="brand-logo" src="/logo.png" alt="" />
@@ -30,18 +30,18 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 
 			<div class="workspace-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
 			<nav class="nav-list">
-				<a class="nav-item selected" href="#catalog" data-catalog-view="all" aria-current="page">
+				<a class="nav-item selected" href="#catalog" aria-current="page">
 					<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3.5" width="14" height="13" rx="2"/><path d="M3.5 8h13M8 8v8"/></svg>
 					<span>Каталог документов</span><span class="nav-count">0</span>
 				</a>
-				<a class="nav-item" href="#catalog" data-catalog-view="recent">
-					<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.6 1.7"/></svg>
-					<span>Недавние</span>
+				<a class="nav-item" href="/templates">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.8h7l4 4v10.4H5V2.8Z"/><path d="M12 3v4h4M8 11h5M8 14h5"/></svg>
+					<span>Шаблоны документов</span>
 				</a>
-				<button class="nav-item nav-button" type="button" data-catalog-view="favorites" aria-label="Избранное">
-					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2.8 2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7L10 2.8Z"/></svg>
-					<span>Избранное</span>
-				</button>
+				<a class="nav-item" href="/knowledge-base">
+					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3.5h12v13H4zM7 7h6M7 10h6M7 13h4"/></svg>
+					<span>База знаний</span>
+				</a>
 			</nav>
 
 			{currentUser?.role === 'admin' && (
@@ -383,19 +383,12 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 	}
 
 	function selectCatalogView(view: string) {
-		if (view === 'favorites') return;
 		activeTab = view === 'recent' ? 'recent' : 'all';
 		currentPage = 0;
 		document.querySelectorAll<HTMLButtonElement>('.tab').forEach((tab) => {
 			const selected = tab.dataset.tab === activeTab;
 			tab.classList.toggle('active-tab', selected);
 			tab.setAttribute('aria-selected', String(selected));
-		});
-		document.querySelectorAll<HTMLElement>('.nav-item[data-catalog-view]').forEach((item) => {
-			const selected = item.dataset.catalogView === activeTab;
-			item.classList.toggle('selected', selected);
-			if (selected) item.setAttribute('aria-current', 'page');
-			else item.removeAttribute('aria-current');
 		});
 		if (demoData) updateRows();
 		else void loadCatalog();
@@ -835,16 +828,6 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 	document.querySelectorAll<HTMLButtonElement>('.tab').forEach((tab) => tab.addEventListener('click', () => {
 		selectCatalogView(tab.dataset.tab ?? 'all');
 	}));
-	document.querySelectorAll<HTMLAnchorElement>('.nav-item[data-catalog-view]').forEach((item) => {
-		item.addEventListener('click', (event) => {
-			event.preventDefault();
-			selectCatalogView(item.dataset.catalogView ?? 'all');
-		});
-	});
-	document.querySelector<HTMLButtonElement>('.nav-item[data-catalog-view="favorites"]')!.addEventListener('click', () => {
-		showToast('Раздел «Избранное» пока не подключён.');
-	});
-
 	rows.forEach((row) => {
 		row.querySelector<HTMLButtonElement>('.document-link')!.addEventListener('click', () => showDocument(row));
 		row.querySelector<HTMLButtonElement>('.file-count')!.addEventListener('click', () => showDocument(row));
@@ -1019,7 +1002,7 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 		--muted: #788391;
 		--line: #edf0f3;
 		--green: #21805a;
-		--sidebar: #172a27;
+		--sidebar: #fff;
 		font-family: Inter, "Segoe UI", Arial, sans-serif;
 		color: var(--ink);
 		background: #f7f8fa;
