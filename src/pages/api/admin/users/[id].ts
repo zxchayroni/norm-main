@@ -19,14 +19,29 @@ export const PATCH: APIRoute = async ({ params, request, locals, clientAddress }
 	try { input = await request.json(); } catch { return fail('Некорректный формат запроса.', 400); }
 	if (!input || typeof input !== 'object' || Array.isArray(input)) return fail('Укажите изменяемые поля.', 400);
 	const body = input as Record<string, unknown>;
+	const legacyNameParts = typeof body.fullName === 'string' ? body.fullName.trim().split(/\s+/) : [];
+	const hasName = body.fullName !== undefined || body.firstName !== undefined || body.lastName !== undefined || body.patronymic !== undefined;
+	const firstName = body.firstName ?? legacyNameParts[0];
+	const lastName = body.lastName ?? legacyNameParts[1] ?? '';
+	const patronymic = body.patronymic ?? legacyNameParts.slice(2).join(' ');
+	const fullName = [lastName, firstName, patronymic].map((part) => typeof part === 'string' ? part.trim() : '').filter(Boolean).join(' ');
 	if (
 		(body.role !== undefined && (typeof body.role !== 'string' || !roles.has(body.role))) ||
 		(body.isActive !== undefined && typeof body.isActive !== 'boolean') ||
-		(body.fullName !== undefined && (typeof body.fullName !== 'string' || !body.fullName.trim() || body.fullName.trim().length > 200)) ||
-		(body.email !== undefined && body.email !== null && (typeof body.email !== 'string' || body.email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email))) ||
+		(hasName && (
+			typeof firstName !== 'string' || !firstName.trim() || firstName.trim().length > 100 ||
+			typeof lastName !== 'string' || lastName.trim().length > 100 ||
+			typeof patronymic !== 'string' || patronymic.trim().length > 100 ||
+			fullName.length > 200
+		)) ||
+		(body.email !== undefined && body.email !== null && (
+			typeof body.email !== 'string' || body.email.length > 320 ||
+			(body.email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()))
+		)) ||
+		(body.phone !== undefined && body.phone !== null && (typeof body.phone !== 'string' || body.phone.trim().length > 40)) ||
 		(body.password !== undefined && (typeof body.password !== 'string' || body.password.length < 12 || body.password.length > 1024))
 	) return fail('Некорректные значения полей пользователя.', 400);
-	if (Object.keys(body).some((key) => !['role', 'isActive', 'fullName', 'email', 'password'].includes(key))) {
+	if (Object.keys(body).some((key) => !['role', 'isActive', 'fullName', 'firstName', 'lastName', 'patronymic', 'email', 'phone', 'password'].includes(key))) {
 		return fail('Запрос содержит неизвестные поля.', 400);
 	}
 
@@ -63,8 +78,14 @@ export const PATCH: APIRoute = async ({ params, request, locals, clientAddress }
 		};
 		if (body.role !== undefined) set('role', body.role);
 		if (body.isActive !== undefined) set('is_active', body.isActive);
-		if (body.fullName !== undefined) set('full_name', body.fullName.trim());
-		if (body.email !== undefined) set('email', body.email);
+		if (hasName) {
+			set('full_name', fullName);
+			set('first_name', firstName.trim());
+			set('last_name', lastName.trim());
+			set('patronymic', patronymic.trim());
+		}
+		if (body.email !== undefined) set('email', typeof body.email === 'string' ? body.email.trim() || null : null);
+		if (body.phone !== undefined) set('phone', typeof body.phone === 'string' ? body.phone.trim() || null : null);
 		if (body.password !== undefined) {
 			set('password_hash', await argon2.hash(String(body.password), { type: argon2.argon2id }));
 			set('failed_login_count', 0);

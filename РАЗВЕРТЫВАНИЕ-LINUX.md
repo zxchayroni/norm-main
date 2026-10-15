@@ -84,15 +84,12 @@ sudo -u normarchive git clone https://github.com/OWNER/REPOSITORY.git /opt/norma
 
 Замените пример на HTTPS-адрес именно этого проекта на GitHub. Команда скачает исходный код из основной ветки репозитория; если нужно установить опубликованную версию из другой ветки или тега, откройте репозиторий на GitHub и выберите нужную версию до сборки. Для закрытого репозитория настройте на сервере безопасную авторизацию GitHub с доступом только на чтение; не вставляйте пароль или токен в URL и не сохраняйте их в командах. Не переносите исходный код, `node_modules`, `dist` или `.env` с Windows: исходники берутся с GitHub, зависимости и сборка создаются на Ubuntu, а секреты настраиваются отдельно.
 
-Установите зависимости и соберите приложение:
+Установите зависимости:
 
 ```bash
 cd /opt/normarchive/app
 sudo -u normarchive npm ci
-sudo -u normarchive npm run build
 ```
-
-Сборка должна завершиться без ошибки и создать файл `dist/server/entry.mjs`.
 
 ## 5. Настроить переменные окружения
 
@@ -112,9 +109,11 @@ ARCHIVE_STORAGE_DIR=/var/lib/normarchive/files
 TOTP_ENCRYPTION_KEY=ВСТАВЬТЕ_64_ШЕСТНАДЦАТЕРИЧНЫХ_СИМВОЛА
 HOST=127.0.0.1
 PORT=4321
+APP_ALLOWED_HOSTS=localhost,127.0.0.1,192.168.1.20
 ```
 
 `PUBLIC_BASE_URL` оставьте незаданным: он не нужен для обычной работы в локальной сети. Функция создания ссылок для редактирования Office требует HTTPS и без него недоступна. Не меняйте `TOTP_ENCRYPTION_KEY` после настройки пользователями двухфакторной аутентификации: без прежнего ключа сохранённые TOTP-секреты нельзя расшифровать.
+В `APP_ALLOWED_HOSTS` укажите IP-адрес или имя сервера, по которому к сайту обращаются браузеры, вместе с `localhost` и `127.0.0.1`. Это только имена хостов: без схемы `http(s)://`, пути и порта. Astro использует список при проверке запросов от браузера; после изменения списка production-сборку нужно выполнить заново.
 
 Сохраните файл в nano (`Ctrl+O`, `Enter`, `Ctrl+X`) и ограничьте доступ:
 
@@ -160,6 +159,13 @@ exit
 Создание первого администратора доступно только пока в базе ещё нет администраторов.
 
 ## 8. Запустить приложение как службу systemd
+
+Соберите production-версию с настроенными значениями `APP_ALLOWED_HOSTS` и проверьте наличие серверного файла:
+
+```bash
+sudo -u normarchive bash -c 'set -a; source /etc/normarchive/normarchive.env; set +a; cd /opt/normarchive/app; npm run build'
+test -f /opt/normarchive/app/dist/server/entry.mjs
+```
 
 Создайте описание службы:
 
@@ -281,7 +287,7 @@ sudo systemctl start normarchive
 sudo systemctl stop normarchive
 sudo -u normarchive git -C /opt/normarchive/app pull --ff-only
 sudo -u normarchive npm --prefix /opt/normarchive/app ci
-sudo -u normarchive npm --prefix /opt/normarchive/app run build
+sudo -u normarchive bash -c 'set -a; source /etc/normarchive/normarchive.env; set +a; cd /opt/normarchive/app; npm run build'
 sudo -u normarchive bash -c 'set -a; source /etc/normarchive/normarchive.env; set +a; cd /opt/normarchive/app; npm run db:migrate'
 sudo systemctl start normarchive
 sudo systemctl status normarchive

@@ -1,5 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
-import { getSessionUser } from './lib/server/auth';
+import { getSessionUser, type SessionUser } from './lib/server/auth';
 
 const publicPaths = new Set(['/api/auth/login', '/api/auth/me', '/favicon.svg', '/favicon.ico']);
 
@@ -31,7 +31,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		return context.redirect('/login');
 	}
 
-	const user = await getSessionUser(context.request, context.cookies);
+	let user: SessionUser | null;
+	try {
+		user = await getSessionUser(context.request, context.cookies);
+	} catch (error) {
+		if (context.url.pathname === '/login' || context.url.pathname === '/api/auth/logout') {
+			console.error(`Session lookup failed while handling ${context.url.pathname}:`, error);
+			context.locals.user = null;
+			return next();
+		}
+		throw error;
+	}
+
 	if (context.url.pathname === '/login') {
 		context.locals.user = null;
 		return user ? context.redirect('/') : next();

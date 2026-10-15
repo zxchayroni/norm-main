@@ -19,10 +19,11 @@ try {
 	if (admins.rowCount) throw new Error('An administrator already exists; bootstrap is disabled.');
 
 	const passwordHash = await argon2.hash(BOOTSTRAP_ADMIN_PASSWORD, { type: argon2.argon2id });
+	const [firstName = '', lastName = '', ...patronymicParts] = BOOTSTRAP_ADMIN_NAME.trim().split(/\s+/);
 	await pool.query(
-		`INSERT INTO users (username, password_hash, full_name, role)
-		 VALUES ($1, $2, $3, 'admin')`,
-		[BOOTSTRAP_ADMIN_USERNAME.toLowerCase(), passwordHash, BOOTSTRAP_ADMIN_NAME.trim()],
+		`INSERT INTO users (username, password_hash, full_name, first_name, last_name, patronymic, role)
+		 VALUES ($1, $2, $3, $4, $5, $6, 'admin')`,
+		[BOOTSTRAP_ADMIN_USERNAME.toLowerCase(), passwordHash, [lastName, firstName, ...patronymicParts].filter(Boolean).join(' '), firstName, lastName, patronymicParts.join(' ')],
 	);
 	console.log(`Administrator "${BOOTSTRAP_ADMIN_USERNAME.toLowerCase()}" created.`);
 } finally {

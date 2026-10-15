@@ -172,12 +172,12 @@ export const POST: APIRoute = async ({ request, locals, clientAddress }) => {
 		typeof title !== 'string' || !title.trim() || title.trim().length > 300 ||
 		typeof type !== 'string' || !type.trim() || type.length > 100 ||
 		(number !== undefined && (typeof number !== 'string' || number.length > 100)) ||
-		(date !== undefined && date !== null && date !== '' && (typeof date !== 'string' || !isValidDate(date))) ||
+		(typeof date !== 'string' || !isValidDate(date)) ||
 		(effectiveDate !== null && effectiveDate !== '' && (typeof effectiveDate !== 'string' || !isValidDate(effectiveDate))) ||
 		(expiryDate !== null && expiryDate !== '' && (typeof expiryDate !== 'string' || !isValidDate(expiryDate))) ||
 		(status !== undefined && (typeof status !== 'string' || status.length > 100)) ||
 		(description !== undefined && (typeof description !== 'string' || description.length > 5000)) ||
-		(department !== undefined && (typeof department !== 'string' || department.length > 200)) ||
+		(typeof department !== 'string' || !department.trim() || department.length > 200) ||
 		(typeof legalBasis !== 'string' || legalBasis.length > 1000) ||
 		(typeof paperLocation !== 'string' || paperLocation.length > 500) ||
 		(typeof notes !== 'string' || notes.length > 5000) ||

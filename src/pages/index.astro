@@ -21,10 +21,7 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 		<aside class="sidebar" aria-label="Основная навигация" transition:name="app-sidebar">
 			<div class="sidebar-top">
 				<a class="brand" href="/" aria-label="НормАрхив — главная">
-					<span class="brand-mark" aria-hidden="true">
-						<svg viewBox="0 0 32 32" fill="none"><path d="M7 5.5h12.2L25 11v15.5H7V5.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M19 5.8V12h5.7M11 17h10M11 21h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-					</span>
-					<span class="brand-copy"><strong>норм<span>архив</span></strong><small>документы организации</small></span>
+					<img class="brand-logo" src="/logo.png" alt="" />
 				</a>
 				<button class="mobile-menu-toggle" type="button" data-mobile-menu-toggle aria-expanded="false" aria-label="Открыть меню">
 					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
@@ -57,7 +54,7 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 						</a>
 						<a class="nav-item" href="/admin/users">
 							<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8" cy="7" r="3"/><path d="M2.8 16c.5-2.4 2.3-3.7 5.2-3.7s4.7 1.3 5.2 3.7M14 5.2a3 3 0 0 1 0 5.6m1.1 1.7c1.2.7 1.8 1.8 2.1 3.5"/></svg>
-							<span>Пользователи</span>
+							<span>Подразделения, пользователи и роли</span>
 						</a>
 						<a class="nav-item" href="/admin/audit">
 							<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3h12v14H4zM7 7h6M7 10h6M7 13h3"/></svg>
@@ -289,21 +286,10 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 		<form id="document-form">
 			<div class="form-grid">
 				<label class="field-wide">Название документа<input name="title" maxlength="300" required /></label>
-				<label>Номер<input name="number" maxlength="100" /></label>
-				<label>Дата документа<input name="date" type="date" /></label>
+				<label>Дата документа<input name="date" type="date" required /></label>
 				<label>Вид документа<select name="type" required><option value="">Выберите вид</option></select></label>
-				<label>Статус<select name="status" required><option value="">Выберите статус</option></select></label>
-				<label class="field-wide">Подразделение<select name="department"><option value="">Не выбрано</option></select></label>
-				<label>Вступает в силу<input name="effectiveDate" type="date" /></label>
-				<label>Действует до<input name="expiryDate" type="date" /></label>
-				<label class="field-wide">Описание<textarea name="description" rows="3" maxlength="5000"></textarea></label>
-				<label class="field-wide">Основание<input name="legalBasis" maxlength="1000" /></label>
-				<label class="field-wide">Место хранения бумажного оригинала<input name="paperLocation" maxlength="500" /></label>
-				<label class="field-wide">Теги <small>Укажите через запятую</small><input name="tags" maxlength="1500" placeholder="например: закупки, 2025, внутренний документ" /></label>
-				{currentUser?.role === 'admin' && <label class="field-wide">Доступ<select name="accessLevel"><option value="organization">Всем пользователям архива</option><option value="restricted">Только администраторам</option></select></label>}
-				<label class="field-wide">Примечания<textarea name="notes" rows="2" maxlength="5000"></textarea></label>
-				<label class="field-wide">Файлы (DOCX, XLSX, PDF — до 100 МБ каждый)<input name="files" type="file" multiple accept=".docx,.xlsx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" /></label>
-				<label class="field-wide">Тип загружаемых файлов<select name="fileKind"><option value="Исходный документ">Исходный документ</option><option value="Подписанный скан">Подписанный скан</option><option value="Приложение">Приложение</option><option value="Дополнительный материал">Дополнительный материал</option><option value="Иной файл">Иной файл</option></select></label>
+				<label class="field-wide">Подразделение<select name="department" required><option value="">Выберите подразделение</option></select></label>
+				<label class="field-wide">Файлы документа (необязательно; DOCX, XLSX, PDF — до 100 МБ каждый)<input name="files" type="file" multiple accept=".docx,.xlsx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" /></label>
 			</div>
 			<div class="form-error" id="form-error" role="alert" hidden></div>
 			<div class="dialog-actions"><button class="secondary-button form-close" type="button">Отмена</button><button class="primary-button" type="submit" id="save-document">Сохранить документ</button></div>
@@ -722,15 +708,13 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 		formError.hidden = true;
 		if (row) {
 			(form.elements.namedItem('title') as HTMLInputElement).value = row.dataset.title ?? '';
-			(form.elements.namedItem('number') as HTMLInputElement).value = row.dataset.number ?? '';
 			(form.elements.namedItem('date') as HTMLInputElement).value = row.dataset.dateIso ?? '';
-			(form.elements.namedItem('description') as HTMLTextAreaElement).value = row.dataset.description ?? '';
 		}
 		try {
 			const response = await fetch('/api/admin/dictionaries');
 			if (!response.ok) throw new Error('Не удалось загрузить справочники.');
 			const { items } = await response.json() as { items: Array<{ type: string; name: string }> };
-			for (const [field, kind] of [['type', 'doc_type'], ['status', 'status'], ['department', 'department']] as const) {
+			for (const [field, kind] of [['type', 'doc_type'], ['department', 'department']] as const) {
 				const select = form.elements.namedItem(field) as HTMLSelectElement;
 				const placeholder = select.options[0];
 				select.replaceChildren(placeholder);
@@ -740,31 +724,8 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 					option.textContent = item.name;
 					select.append(option);
 				}
-				if (row) {
-					const detailResponse = await fetch(`/api/documents/${encodeURIComponent(row.dataset.id ?? '')}`);
-					if (!detailResponse.ok) throw new Error('Не удалось загрузить дополнительные реквизиты документа.');
-					const { document: details } = await detailResponse.json() as { document: Record<string, unknown> };
-					(form.elements.namedItem('effectiveDate') as HTMLInputElement).value = String(details.effectiveDate ?? '');
-					(form.elements.namedItem('expiryDate') as HTMLInputElement).value = String(details.expiryDate ?? '');
-					(form.elements.namedItem('legalBasis') as HTMLInputElement).value = String(details.legalBasis ?? '');
-					(form.elements.namedItem('paperLocation') as HTMLInputElement).value = String(details.paperLocation ?? '');
-					(form.elements.namedItem('notes') as HTMLTextAreaElement).value = String(details.notes ?? '');
-					(form.elements.namedItem('tags') as HTMLInputElement).value = Array.isArray(details.tags) ? details.tags.join(', ') : '';
-					const accessLevel = form.elements.namedItem('accessLevel') as HTMLSelectElement | null;
-					if (accessLevel) accessLevel.value = String(details.accessLevel ?? 'organization');
-				}
 				if (row?.dataset[field]) select.value = row.dataset[field]!;
 			}
-			const fileKindSelect = form.elements.namedItem('fileKind') as HTMLSelectElement;
-			const fileKindPlaceholder = fileKindSelect.options[0];
-			fileKindSelect.replaceChildren(fileKindPlaceholder);
-			for (const item of items.filter((entry) => entry.type === 'file_kind')) {
-				const option = document.createElement('option');
-				option.value = item.name;
-				option.textContent = item.name;
-				fileKindSelect.append(option);
-			}
-			if (!fileKindSelect.value) fileKindSelect.value = 'Исходный документ';
 			formDialog.showModal();
 		} catch {
 			showToast('Не удалось загрузить справочники. Проверьте подключение к серверу.');
@@ -893,9 +854,6 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 	dialog.querySelectorAll<HTMLButtonElement>('.dialog-close, .dialog-close-action').forEach((button) => {
 		button.addEventListener('click', () => dialog.close());
 	});
-	dialog.addEventListener('click', (event) => {
-		if (event.target === dialog) dialog.close();
-	});
 	document.querySelector<HTMLButtonElement>('#add-document')?.addEventListener('click', () => void openCreateForm());
 	document.querySelector<HTMLButtonElement>('#edit-document')!.addEventListener('click', () => {
 		const row = rows.find((item) => item.dataset.id === currentDocumentId);
@@ -951,30 +909,19 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 		const saveButton = document.querySelector<HTMLButtonElement>('#save-document')!;
 		const formError = document.querySelector<HTMLElement>('#form-error')!;
 		const title = (form.elements.namedItem('title') as HTMLInputElement).value.trim();
-		const number = (form.elements.namedItem('number') as HTMLInputElement).value.trim();
 		const date = (form.elements.namedItem('date') as HTMLInputElement).value;
 		const type = (form.elements.namedItem('type') as HTMLSelectElement).value;
-		const status = (form.elements.namedItem('status') as HTMLSelectElement).value;
 		const department = (form.elements.namedItem('department') as HTMLSelectElement).value;
-		const effectiveDate = (form.elements.namedItem('effectiveDate') as HTMLInputElement).value;
-		const expiryDate = (form.elements.namedItem('expiryDate') as HTMLInputElement).value;
-		const legalBasis = (form.elements.namedItem('legalBasis') as HTMLInputElement).value.trim();
-		const paperLocation = (form.elements.namedItem('paperLocation') as HTMLInputElement).value.trim();
-		const notes = (form.elements.namedItem('notes') as HTMLTextAreaElement).value.trim();
-		const tags = (form.elements.namedItem('tags') as HTMLInputElement).value.split(',').map((tag) => tag.trim()).filter(Boolean);
-		const accessLevel = form.elements.namedItem('accessLevel') as HTMLSelectElement | null;
-		const description = (form.elements.namedItem('description') as HTMLTextAreaElement).value.trim();
-		const fileKind = (form.elements.namedItem('fileKind') as HTMLSelectElement).value || 'Исходный документ';
 		const selectedFiles = Array.from((form.elements.namedItem('files') as HTMLInputElement).files ?? []);
 		formError.hidden = true;
 		saveButton.disabled = true;
 		try {
-			const payload: Record<string, string | string[] | null> = {
-				title, number, date: date || null, effectiveDate: effectiveDate || null,
-				expiryDate: expiryDate || null, type, status, description, legalBasis, paperLocation, notes, tags,
+			const payload = {
+				title,
+				date,
+				type,
+				department,
 			};
-			if (department) payload.department = department;
-			if (accessLevel) payload.accessLevel = accessLevel.value;
 			const wasEditing = Boolean(editingDocumentId);
 			let response = await fetch(
 				wasEditing ? `/api/documents/${encodeURIComponent(editingDocumentId!)}` : '/api/documents',
@@ -1004,7 +951,7 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 			for (const file of selectedFiles) {
 				const formData = new FormData();
 				formData.append('file', file);
-				formData.append('fileKind', fileKind);
+				formData.append('fileKind', 'Исходный документ');
 				const uploadResponse = await fetch(`/api/documents/${encodeURIComponent(savedId!)}/files`, { method: 'POST', body: formData });
 				const uploadResult = await uploadResponse.json() as { error?: string };
 				if (!uploadResponse.ok) {
@@ -1028,12 +975,13 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 	document.querySelectorAll<HTMLButtonElement>('.form-close').forEach((button) => {
 		button.addEventListener('click', () => formDialog.close());
 	});
-	formDialog.addEventListener('click', (event) => {
-		if (event.target === formDialog) formDialog.close();
-	});
 	async function logout() {
 		try {
 			const response = await fetch('/api/auth/logout', { method: 'POST' });
+			if (response.status === 503) {
+				window.location.assign('/login?logout=partial');
+				return;
+			}
 			if (!response.ok) throw new Error('Сервер не подтвердил завершение сессии.');
 			window.location.assign('/login');
 		} catch {
@@ -1085,13 +1033,8 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 	:global(button) { color: inherit; }
 	.app-shell { min-height: 100vh; }
 	.sidebar { background: var(--sidebar); bottom: 0; color: #e8f0ed; display: flex; flex-direction: column; left: 0; padding: 27px 17px 16px; position: fixed; top: 0; width: 252px; z-index: 3; }
-	.brand { align-items: center; color: inherit; display: flex; gap: 11px; margin: 0 7px 47px; text-decoration: none; }
-	.brand-mark { align-items: center; background: #c6e7d5; border-radius: 11px; color: #184a3c; display: flex; height: 39px; justify-content: center; width: 39px; }
-	.brand-mark svg { height: 25px; width: 25px; }
-	.brand-copy { display: grid; gap: 2px; }
-	.brand-copy strong { color: #f5f7f6; font-size: 19px; font-weight: 750; letter-spacing: -.8px; }
-	.brand-copy strong span { color: #a7d5bc; }
-	.brand-copy small { color: #91a29d; font-size: 10px; letter-spacing: .16px; }
+	.brand { align-items: center; color: inherit; display: flex; justify-content: center; margin: 0 0 32px; text-decoration: none; }
+	.brand-logo { display: block; height: 168px; object-fit: contain; width: 100%; }
 	.workspace-label { color: #81928d; font-size: 9px; font-weight: 700; letter-spacing: 1.15px; margin: 0 10px 12px; }
 	.nav-list { display: grid; gap: 4px; }
 	.nav-item { align-items: center; background: transparent; border: 0; border-radius: 8px; color: #afbfba; display: flex; font-size: 12px; gap: 11px; min-height: 41px; padding: 0 10px; position: relative; text-align: left; text-decoration: none; transition: background .2s ease, color .2s ease, transform .2s ease; width: 100%; }
@@ -1416,10 +1359,8 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 		:global(html.mobile-nav-open) .sidebar { bottom: 0; border-radius: 0 16px 16px 0; height: 100dvh; overflow-y: auto; padding: 20px 17px 16px; right: auto; width: min(320px, calc(100vw - 48px)); }
 		.sidebar-top { align-items: center; display: flex; justify-content: space-between; margin: 0; }
 		:global(html.mobile-nav-open) .sidebar-top { margin-bottom: 30px; }
-		.brand { margin: 0; }
-		.brand-mark { height: 34px; width: 34px; }
-		.brand-mark svg { height: 22px; width: 22px; }
-		.brand-copy strong { font-size: 17px; }
+		.brand { margin-bottom: 20px; }
+		.brand-logo { height: 128px; }
 		.workspace-label, .nav-list, .sidebar-bottom { display: none; }
 		:global(html.mobile-nav-open) .workspace-label { display: block; }
 		:global(html.mobile-nav-open) .nav-list { display: grid; }
@@ -1748,9 +1689,7 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 		color: #303943;
 		padding: 25px 16px 16px;
 	}
-	.brand-copy strong { color: #18212a; }
-	.brand-copy strong span { color: #38845f; }
-	.brand-copy small, .workspace-label { color: #929ba3; }
+	.workspace-label { color: #929ba3; }
 	.nav-item { color: #68737c; }
 	.nav-item::before { background: #38845f; }
 	.nav-item:hover { background: #f3f6f4; color: #202a33; }
@@ -1796,9 +1735,7 @@ const roleLabels: Record<NonNullable<typeof currentUser>['role'], string> = {
 		background: radial-gradient(ellipse at 78% 0%, rgb(75 103 84 / 12%), transparent 38%), #090a0b;
 	}
 	:global(html[data-theme="dark"]) .sidebar { background: #0b0c0d; border-right-color: #222527; color: #e6e9e7; }
-	:global(html[data-theme="dark"]) .brand-copy strong { color: #f3f5f4; }
-	:global(html[data-theme="dark"]) .brand-copy strong span { color: #a7d5bc; }
-	:global(html[data-theme="dark"]) .brand-copy small,
+
 	:global(html[data-theme="dark"]) .workspace-label { color: #858d89; }
 	:global(html[data-theme="dark"]) .nav-item { color: #a4aaa7; }
 	:global(html[data-theme="dark"]) .nav-item:hover { background: #191c1a; color: #fff; }

@@ -10,7 +10,24 @@ export const POST: APIRoute = async ({ request, cookies, locals, clientAddress }
 		});
 	}
 
-	await revokeSession(cookies);
-	if (locals.user) await audit(locals.user.id, 'logout', 'user', locals.user.id, 'success', {}, clientAddress);
+	try {
+		await revokeSession(cookies);
+	} catch (error) {
+		console.error('Failed to revoke the server-side session during logout:', error);
+		return new Response(JSON.stringify({
+			error: 'Сессия удалена из этого браузера, но сервер не подтвердил её отзыв.',
+		}), {
+			status: 503,
+			headers: { 'content-type': 'application/json; charset=utf-8' },
+		});
+	}
+
+	if (locals.user) {
+		try {
+			await audit(locals.user.id, 'logout', 'user', locals.user.id, 'success', {}, clientAddress);
+		} catch (error) {
+			console.error('The session was revoked, but the logout audit event could not be recorded:', error);
+		}
+	}
 	return new Response(null, { status: 204 });
 };

@@ -1,5 +1,6 @@
 ---
 import { ClientRouter } from 'astro:transitions';
+import { SESSION_IDLE_TIMEOUT_MS } from '../lib/session-policy';
 
 interface Props {
 	title?: string;
@@ -14,8 +15,7 @@ const { title = 'НормАрхив — электронный архив док
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="theme-color" content="#f7f8fa" />
 		<meta name="description" content="Электронный архив нормативных документов организации" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
+		<link rel="icon" type="image/png" href="/favicon.png" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
 		<ClientRouter />
@@ -32,7 +32,7 @@ const { title = 'НормАрхив — электронный архив док
 			}
 		</script>
 	</head>
-	<body>
+	<body data-session-idle-timeout={SESSION_IDLE_TIMEOUT_MS} data-session-user-id={Astro.locals.user?.id ?? ''}>
 		<slot />
 		<script>
 			function syncThemeButtons() {
@@ -57,6 +57,162 @@ const { title = 'НормАрхив — электронный архив док
 			}
 			restoreSavedTheme();
 			document.addEventListener('astro:page-load', restoreSavedTheme);
+			let lastSessionRefresh = Date.now();
+			let sessionRefreshPending = false;
+			const sessionIdleTimeoutMs = Number(document.body.dataset.sessionIdleTimeout);
+			const sessionUserId = document.body.dataset.sessionUserId;
+			const lastActivityStorageKey = sessionUserId ? `normarchive-last-activity-${sessionUserId}` : null;
+			let lastActivityAt = Date.now();
+			let lastActivityPersistedAt = 0;
+			let idleTimer;
+			let idleLogoutStarted = false;
+			const sessionActivityChannel = 'BroadcastChannel' in window
+				? new BroadcastChannel('normarchive-session-activity')
+				: null;
+
+			async function refreshActiveSession() {
+				if (
+					!document.querySelector('.sidebar') ||
+					document.visibilityState !== 'visible' ||
+					sessionRefreshPending ||
+					Date.now() - lastSessionRefresh < 5 * 60 * 1000
+				) return;
+				lastSessionRefresh = Date.now();
+				sessionRefreshPending = true;
+				try {
+					const response = await fetch('/api/auth/me', { credentials: 'same-origin' });
+					if (!response.ok && response.status !== 401) {
+						throw new Error(`Ошибка обновления сессии (${response.status}).`);
+					}
+					if (response.status === 401) {
+						window.dispatchEvent(new Event('normarchive-session-expired'));
+					}
+				} catch (error) {
+					console.error('Не удалось обновить активную сессию:', error);
+				} finally {
+					sessionRefreshPending = false;
+				}
+			}
+
+			function readSharedLastActivity() {
+				if (!lastActivityStorageKey) return lastActivityAt;
+				try {
+					const sharedTimestamp = Number(localStorage.getItem(lastActivityStorageKey));
+					if (Number.isFinite(sharedTimestamp)) lastActivityAt = Math.max(lastActivityAt, sharedTimestamp);
+				} catch (error) {
+					console.error('Не удалось проверить активность сессии в других вкладках:', error);
+				}
+				return lastActivityAt;
+			}
+
+			function finishIdleSession() {
+				if (idleLogoutStarted) return;
+				const remaining = sessionIdleTimeoutMs - (Date.now() - readSharedLastActivity());
+				if (remaining > 0) {
+					idleTimer = window.setTimeout(finishIdleSession, remaining);
+					return;
+				}
+				idleLogoutStarted = true;
+				window.dispatchEvent(new Event('normarchive-session-expired'));
+				void fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+					.then((response) => {
+						if (!response.ok && response.status !== 401) {
+							throw new Error(`Сервер не подтвердил завершение неактивной сессии (${response.status}).`);
+						}
+					})
+					.catch((error) => console.error('Не удалось завершить неактивную сессию на сервере:', error))
+					.finally(() => window.location.assign('/login?expired=1'));
+			}
+
+			function scheduleIdleCheck() {
+				window.clearTimeout(idleTimer);
+				if (!document.querySelector('.sidebar') || !sessionUserId) return;
+				const remaining = sessionIdleTimeoutMs - (Date.now() - readSharedLastActivity());
+				idleTimer = window.setTimeout(finishIdleSession, Math.max(remaining, 0));
+			}
+
+			function recordSessionActivity(broadcast = true) {
+				if (!sessionUserId || !document.querySelector('.sidebar') || idleLogoutStarted) return;
+				lastActivityAt = Date.now();
+				lastActivityPersistedAt = lastActivityAt;
+				scheduleIdleCheck();
+				void refreshActiveSession();
+				if (lastActivityStorageKey) {
+					try {
+						localStorage.setItem(lastActivityStorageKey, String(lastActivityAt));
+					} catch (error) {
+						console.error('Не удалось синхронизировать активность сессии между вкладками:', error);
+					}
+				}
+				if (broadcast) sessionActivityChannel?.postMessage({ userId: sessionUserId, timestamp: lastActivityAt });
+			}
+
+			function initializeSessionActivity() {
+				if (!document.querySelector('.sidebar') || !sessionUserId) {
+					window.clearTimeout(idleTimer);
+					return;
+				}
+				readSharedLastActivity();
+				recordSessionActivity();
+			}
+
+			for (const eventName of ['pointerdown', 'keydown', 'input', 'touchstart']) {
+				document.addEventListener(eventName, () => recordSessionActivity(), { passive: true });
+			}
+			let lastContinuousActivityAt = 0;
+			for (const eventName of ['wheel', 'scroll']) {
+				document.addEventListener(eventName, () => {
+					if (Date.now() - lastContinuousActivityAt < 1000) return;
+					lastContinuousActivityAt = Date.now();
+					recordSessionActivity();
+				}, { passive: true });
+			}
+			document.addEventListener('pointermove', () => {
+				if (Date.now() - lastActivityPersistedAt >= 2000) recordSessionActivity();
+			}, { passive: true });
+			document.addEventListener('visibilitychange', () => {
+				if (document.visibilityState === 'visible') scheduleIdleCheck();
+			});
+			window.addEventListener('storage', (event) => {
+				if (!lastActivityStorageKey || event.key !== lastActivityStorageKey) return;
+				const timestamp = Number(event.newValue);
+				if (Number.isFinite(timestamp) && timestamp > lastActivityAt) {
+					lastActivityAt = timestamp;
+					scheduleIdleCheck();
+				}
+			});
+			sessionActivityChannel?.addEventListener('message', (event) => {
+				if (event.data?.userId !== sessionUserId || !Number.isFinite(event.data?.timestamp)) return;
+				if (event.data.timestamp > lastActivityAt) {
+					lastActivityAt = event.data.timestamp;
+					scheduleIdleCheck();
+				}
+			});
+			initializeSessionActivity();
+			document.addEventListener('astro:page-load', initializeSessionActivity);
+			function updateProfileDisplay(update) {
+				const displayName = [update?.lastName, update?.firstName]
+					.filter((part) => typeof part === 'string' && part.trim())
+					.join(' ') || update?.fullName;
+				if (typeof displayName !== 'string' || !displayName.trim()) return;
+				document.querySelectorAll('[data-profile-name]').forEach((element) => {
+					element.textContent = displayName;
+				});
+				const initials = displayName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase('ru') ?? '').join('');
+				document.querySelectorAll('[data-profile-initials]').forEach((element) => {
+					element.textContent = initials;
+				});
+			}
+			window.addEventListener('normarchive-profile-updated', (event) => {
+				updateProfileDisplay(event.detail);
+			});
+			if ('BroadcastChannel' in window) {
+				const profileChannel = new BroadcastChannel('normarchive-profile');
+				profileChannel.addEventListener('message', (event) => {
+					updateProfileDisplay(event.data);
+					window.dispatchEvent(new CustomEvent('normarchive-profile-updated', { detail: event.data }));
+				});
+			}
 			function setMobileNavigation(open: boolean, restoreFocus = false) {
 				document.documentElement.classList.toggle('mobile-nav-open', open);
 				document.querySelectorAll<HTMLButtonElement>('[data-mobile-menu-toggle]').forEach((button) => {

@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "node --env-file-if-exists=.env node_modules/astro/bin/astro.mjs dev",
-    "build": "astro build",
+    "build": "node --env-file-if-exists=.env node_modules/astro/bin/astro.mjs build",
     "preview": "node --env-file-if-exists=.env node_modules/astro/bin/astro.mjs preview",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
     "admin:create": "node --env-file-if-exists=.env scripts/create-admin.mjs",

@@ -13,7 +13,10 @@ function fail(error: string, status: number): Response {
 export const GET: APIRoute = async ({ locals }) => {
 	if (locals.user?.role !== 'admin') return fail('Недостаточно прав.', 403);
 	const users = await getPool().query(
-		`SELECT id, username, full_name AS "fullName", email, role,
+		`SELECT id, username,
+		        concat_ws(' ', NULLIF(btrim(last_name), ''), NULLIF(btrim(first_name), '')) AS "fullName",
+		        first_name AS "firstName",
+		        last_name AS "lastName", patronymic, email, phone, role,
 		        is_active AS "isActive", last_login_at AS "lastLoginAt", created_at AS "createdAt"
 		 FROM users ORDER BY full_name, id`,
 	);
@@ -30,24 +33,36 @@ export const POST: APIRoute = async ({ request, locals, clientAddress }) => {
 	const body = input as Record<string, unknown>;
 	const username = body.username;
 	const password = body.password;
-	const fullName = body.fullName;
+	const legacyNameParts = typeof body.fullName === 'string' ? body.fullName.trim().split(/\s+/) : [];
+	const firstName = body.firstName ?? legacyNameParts[0];
+	const lastName = body.lastName ?? legacyNameParts[1] ?? '';
+	const patronymic = body.patronymic ?? legacyNameParts.slice(2).join(' ');
+	const fullName = [lastName, firstName, patronymic].map((part) => typeof part === 'string' ? part.trim() : '').filter(Boolean).join(' ');
 	const role = body.role;
 	const email = body.email;
+	const phone = body.phone;
 	if (
 		typeof username !== 'string' || !/^[a-z0-9._-]{3,100}$/i.test(username) ||
 		typeof password !== 'string' || password.length < 12 || password.length > 1024 ||
-		typeof fullName !== 'string' || !fullName.trim() || fullName.trim().length > 200 ||
+		typeof firstName !== 'string' || !firstName.trim() || firstName.trim().length > 100 ||
+		typeof lastName !== 'string' || lastName.trim().length > 100 ||
+		typeof patronymic !== 'string' || patronymic.trim().length > 100 ||
+		fullName.length > 200 ||
 		typeof role !== 'string' || !roles.has(role) ||
-		(email !== undefined && email !== null && (typeof email !== 'string' || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))
-	) return fail('Проверьте логин, пароль, имя, роль и адрес электронной почты.', 400);
+		(email !== undefined && email !== null && (
+			typeof email !== 'string' || email.length > 320 ||
+			(email.trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+		)) ||
+		(phone !== undefined && phone !== null && (typeof phone !== 'string' || phone.trim().length > 40))
+	) return fail('Проверьте логин, пароль, имя, роль, адрес электронной почты и телефон.', 400);
 
 	const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
 	try {
 		const result = await getPool().query<{ id: string }>(
-			`INSERT INTO users (username, password_hash, full_name, email, role)
-			 VALUES ($1, $2, $3, $4, $5)
+			`INSERT INTO users (username, password_hash, full_name, first_name, last_name, patronymic, email, phone, role)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			 RETURNING id`,
-			[username.toLowerCase(), passwordHash, fullName.trim(), email ?? null, role],
+			[username.toLowerCase(), passwordHash, fullName, firstName.trim(), lastName.trim(), patronymic.trim(), email?.trim() || null, phone?.trim() || null, role],
 		);
 		await getPool().query(
 			`INSERT INTO audit_log (user_id, action, object_type, object_id, result, ip_address)

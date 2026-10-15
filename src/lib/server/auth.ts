@@ -1,9 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { AstroCookies } from 'astro';
+import { SESSION_IDLE_TIMEOUT_SECONDS } from '../session-policy';
 import { getPool } from './db';
 
+export { assertSameOrigin } from './origin';
+
 export const SESSION_COOKIE = 'doc_archive_session';
-export const SESSION_DURATION_SECONDS = 30 * 60;
+export const SESSION_DURATION_SECONDS = SESSION_IDLE_TIMEOUT_SECONDS;
 
 export interface SessionUser {
 	id: string;
@@ -46,14 +49,16 @@ export async function getSessionUser(request: Request, cookies: AstroCookies): P
 
 	const result = await getPool().query<SessionUser>(
 		`UPDATE sessions AS s
-		 SET last_seen_at = NOW(), expires_at = NOW() + INTERVAL '30 minutes'
+		 SET last_seen_at = NOW(), expires_at = NOW() + ($2 * INTERVAL '1 second')
 		 FROM users AS u
 		 WHERE s.token_hash = $1
 		   AND s.user_id = u.id
 		   AND s.expires_at > NOW()
 		   AND u.is_active = TRUE
-		 RETURNING u.id, u.username, u.full_name AS "fullName", u.role`,
-		[hashToken(token)],
+		 RETURNING u.id, u.username,
+		           concat_ws(' ', NULLIF(btrim(u.last_name), ''), NULLIF(btrim(u.first_name), '')) AS "fullName",
+		           u.role`,
+		[hashToken(token), SESSION_DURATION_SECONDS],
 	);
 
 	if (!result.rowCount) return null;
@@ -70,20 +75,9 @@ export async function getSessionUser(request: Request, cookies: AstroCookies): P
 
 export async function revokeSession(cookies: AstroCookies): Promise<void> {
 	const token = cookies.get(SESSION_COOKIE)?.value;
+	cookies.delete(SESSION_COOKIE, { path: '/' });
+
 	if (token && /^[a-f0-9]{64}$/i.test(token)) {
 		await getPool().query('DELETE FROM sessions WHERE token_hash = $1', [hashToken(token)]);
-	}
-
-	cookies.delete(SESSION_COOKIE, { path: '/' });
-}
-
-export function assertSameOrigin(request: Request): boolean {
-	const origin = request.headers.get('origin');
-	if (!origin) return false;
-
-	try {
-		return new URL(origin).origin === new URL(request.url).origin;
-	} catch {
-		return false;
 	}
 }

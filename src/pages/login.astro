@@ -12,15 +12,9 @@ const currentYear = new Date().getFullYear();
 		</button>
 		<div class="login-card">
 			<a class="brand" href="/" aria-label="НормАрхив">
-				<span class="brand-mark" aria-hidden="true">
-					<svg viewBox="0 0 32 32" fill="none"><path d="M7 5.5h12.2L25 11v15.5H7V5.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M19 5.8V12h5.7M11 17h10M11 21h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-				</span>
-				<span class="brand-copy"><strong>норм<span>архив</span></strong><small>документы организации</small></span>
+				<img class="brand-logo" src="/logo.png" alt="" />
 			</a>
 
-			<div class="welcome-mark" aria-hidden="true">
-				<svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4v13H7v-17Z"/><path d="M14 4v4h4M10 13h5M10 16h5"/></svg>
-			</div>
 			<p class="eyebrow">ЗАЩИЩЁННЫЙ ДОСТУП</p>
 			<h1>Войти в систему</h1>
 			<p class="intro">Используйте учётную запись организации</p>
@@ -69,6 +63,15 @@ const currentYear = new Date().getFullYear();
 	const totpLabel = document.querySelector<HTMLLabelElement>('#totp-label')!;
 	const totpWrap = document.querySelector<HTMLDivElement>('#totp-wrap')!;
 	let requiresTotp = false;
+
+	if (new URLSearchParams(window.location.search).get('logout') === 'partial') {
+		error.textContent = 'Сеанс удалён из этого браузера, но сервер не подтвердил его отзыв. Обратитесь к администратору.';
+		error.hidden = false;
+	}
+	if (new URLSearchParams(window.location.search).get('expired') === '1') {
+		error.textContent = 'Сеанс завершён из-за длительного бездействия. Войдите снова.';
+		error.hidden = false;
+	}
 
 	form.addEventListener('submit', async (event) => {
 		event.preventDefault();
@@ -133,15 +136,8 @@ const currentYear = new Date().getFullYear();
 	.login-page { align-items: center; background: radial-gradient(ellipse at 49% 40%, #f8fbf8 0, #f1f5f1 56%, #edf2ee 100%); display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding: 35px 15px 18px; position: relative; }
 	.login-theme-toggle { position: absolute; right: max(24px, calc((100vw - 1160px) / 2)); top: 24px; }
 	.login-card { animation: login-arrive .42s cubic-bezier(.2, .75, .25, 1) both; background: #fff; border: 1px solid #e9efeb; border-radius: 12px; box-shadow: 0 12px 44px #2846380b; max-width: 410px; padding: 29px 35px 26px; width: 100%; }
-	.brand { align-items: center; color: inherit; display: flex; gap: 9px; justify-content: center; margin-bottom: 29px; text-decoration: none; }
-	.brand-mark { align-items: center; background: #d9eee2; border-radius: 9px; color: #225c44; display: flex; height: 35px; justify-content: center; width: 35px; }
-	.brand-mark svg { height: 23px; width: 23px; }
-	.brand-copy { display: grid; gap: 2px; }
-	.brand-copy strong { color: #203b30; font-size: 17px; font-weight: 750; letter-spacing: -.7px; }
-	.brand-copy strong span { color: #43825d; }
-	.brand-copy small { color: #87948c; font-size: 9px; }
-	.welcome-mark { align-items: center; background: #edf6f0; border-radius: 10px; color: #478362; display: flex; height: 43px; justify-content: center; margin: 0 auto 16px; width: 43px; }
-	.welcome-mark svg { fill: none; height: 23px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; width: 23px; }
+	.brand { align-items: center; color: inherit; display: flex; justify-content: center; margin: -10px auto 19px; text-decoration: none; }
+	.brand-logo { display: block; height: 190px; max-width: 100%; object-fit: contain; width: 190px; }
 	.eyebrow { color: #62826f; font-size: 8px; font-weight: 700; letter-spacing: 1.1px; margin: 0 0 7px; text-align: center; }
 	h1 { color: #23312a; font-size: 22px; letter-spacing: -.5px; margin: 0; text-align: center; }
 	.intro { color: #929d96; font-size: 10px; margin: 7px 0 25px; text-align: center; }
@@ -176,9 +172,7 @@ const currentYear = new Date().getFullYear();
 	:global(html[data-theme="dark"] body) { background: #191e1b; color: #e2eae4; }
 	:global(html[data-theme="dark"]) .login-page { background: radial-gradient(ellipse at 49% 40%, #252d28 0, #1d2420 56%, #191e1b 100%); }
 	:global(html[data-theme="dark"]) .login-card { background: #252c28; border-color: #3a463f; box-shadow: 0 16px 52px #0004; }
-	:global(html[data-theme="dark"]) .brand-copy strong,
 	:global(html[data-theme="dark"]) h1 { color: #e4ece6; }
-	:global(html[data-theme="dark"]) .brand-copy small,
 	:global(html[data-theme="dark"]) .intro { color: #a2afa6; }
 	:global(html[data-theme="dark"]) form > label,
 	:global(html[data-theme="dark"]) .password-label label { color: #c1ccc4; }

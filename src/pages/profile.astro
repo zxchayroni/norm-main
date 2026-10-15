@@ -5,16 +5,24 @@ import { getPool } from '../lib/server/db';
 const currentUser = Astro.locals.user;
 if (!currentUser) return Astro.redirect('/login');
 
-const result = await getPool().query<{ fullName: string; email: string | null; phone: string | null }>(
-	'SELECT full_name AS "fullName", email, phone FROM users WHERE id = $1 AND is_active',
+const result = await getPool().query<{
+	fullName: string;
+	firstName: string;
+	lastName: string;
+	patronymic: string;
+	email: string | null;
+	phone: string | null;
+}>(
+	`SELECT concat_ws(' ', NULLIF(btrim(last_name), ''), NULLIF(btrim(first_name), '')) AS "fullName",
+	        first_name AS "firstName", last_name AS "lastName",
+	        patronymic, email, phone
+	 FROM users WHERE id = $1 AND is_active`,
 	[currentUser.id],
 );
 if (!result.rowCount) return Astro.redirect('/login');
 const account = result.rows[0];
-const [firstName = '', ...lastNameParts] = account.fullName.trim().split(/\s+/);
-const lastName = lastNameParts.join(' ');
 const roleLabels = { admin: 'Администратор', editor: 'Редактор', reader: 'Читатель' } as const;
-const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase('ru') ?? '').join('');
+const userInitials = account.fullName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase('ru') ?? '').join('');
 ---
 
 <Layout title="Личный кабинет — НормАрхив">
@@ -22,8 +30,7 @@ const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) =>
 		<aside class="sidebar" aria-label="Основная навигация" transition:name="app-sidebar">
 			<div class="sidebar-top">
 				<a class="brand" href="/" aria-label="НормАрхив — главная">
-					<span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M7 5.5h12.2L25 11v15.5H7V5.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M19 5.8V12h5.7M11 17h10M11 21h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-					<span class="brand-copy"><strong>норм<span>архив</span></strong><small>документы организации</small></span>
+					<img class="brand-logo" src="/logo.png" alt="" />
 				</a>
 				<button class="mobile-menu-toggle" type="button" data-mobile-menu-toggle aria-expanded="false" aria-label="Открыть меню">
 					<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
@@ -49,7 +56,7 @@ const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) =>
 					<div class="workspace-label nav-section-label">УПРАВЛЕНИЕ</div>
 					<nav class="nav-list" aria-label="Управление">
 						<a class="nav-item" href="/admin/import"><span>Импорт документов</span></a>
-						<a class="nav-item" href="/admin/users"><span>Пользователи</span></a>
+						<a class="nav-item" href="/admin/users"><span>Подразделения, пользователи и роли</span></a>
 						<a class="nav-item" href="/admin/audit"><span>Журнал действий</span></a>
 						<a class="nav-item" href="/admin/dictionaries"><span>Настройки</span></a>
 					</nav>
@@ -57,8 +64,8 @@ const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) =>
 			)}
 			<div class="sidebar-bottom">
 				<a class="profile" href="/profile" aria-current="page" aria-label="Личный кабинет">
-					<span class="avatar">{userInitials}</span>
-					<span class="profile-copy"><strong>{currentUser.fullName}</strong><small>{roleLabels[currentUser.role]}</small></span>
+					<span class="avatar" data-profile-initials>{userInitials}</span>
+					<span class="profile-copy"><strong data-profile-name>{account.fullName}</strong><small>{roleLabels[currentUser.role]}</small></span>
 					<svg class="profile-more" viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1"/><circle cx="10" cy="10" r="1"/><circle cx="16" cy="10" r="1"/></svg>
 				</a>
 				<button class="logout-button" id="profile-logout" type="button">Выйти из системы</button>
@@ -85,11 +92,12 @@ const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) =>
 			</header>
 
 			<section class="profile-section" aria-labelledby="profile-data-title">
-				<div class="section-heading"><div><h2 id="profile-data-title">Личные данные</h2><p>Имя, контакты и адрес электронной почты</p></div></div>
-				<form id="profile-form">
+				<div class="section-heading"><div><h2 id="profile-data-title">Личные данные</h2><p>ФИО, контакты и адрес электронной почты</p></div></div>
+				<form id="profile-form" data-user-id={currentUser.id}>
 					<div class="profile-fields">
-						<label>Имя<input name="firstName" value={firstName} autocomplete="given-name" required maxlength="100" /></label>
-						<label>Фамилия<input name="lastName" value={lastName} autocomplete="family-name" required maxlength="100" /></label>
+						<label>Имя<input name="firstName" value={account.firstName} autocomplete="given-name" required maxlength="100" /></label>
+						<label>Фамилия<input name="lastName" value={account.lastName} autocomplete="family-name" maxlength="100" /></label>
+						<label>Отчество<input name="patronymic" value={account.patronymic} autocomplete="additional-name" maxlength="100" /></label>
 						<label>Электронная почта<input name="email" type="email" value={account.email ?? ''} autocomplete="email" maxlength="320" /></label>
 						<label>Телефон<input name="phone" type="tel" value={account.phone ?? ''} autocomplete="tel" maxlength="40" /></label>
 					</div>
@@ -149,8 +157,26 @@ const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) =>
 		const passwordForm = document.querySelector<HTMLFormElement>('#password-form');
 		const totpSection = document.querySelector<HTMLElement>('#totp-section');
 		if (!profileForm || !passwordForm || !totpSection) return;
+		const profileChannel = 'BroadcastChannel' in window ? new BroadcastChannel('normarchive-profile') : null;
+		const handleProfileUpdate = (event: Event) => {
+			const update = (event as CustomEvent).detail;
+			if (String(update?.userId) !== profileForm.dataset.userId) return;
+			for (const name of ['firstName', 'lastName', 'patronymic', 'email', 'phone']) {
+				const input = profileForm.elements.namedItem(name);
+				if (input instanceof HTMLInputElement && typeof update[name] === 'string') input.value = update[name];
+			}
+		};
+		window.addEventListener('normarchive-profile-updated', handleProfileUpdate);
+		document.addEventListener('astro:before-swap', () => {
+			window.removeEventListener('normarchive-profile-updated', handleProfileUpdate);
+			profileChannel?.close();
+		}, { once: true });
 		document.querySelector<HTMLButtonElement>('#profile-logout')?.addEventListener('click', async () => {
 			const response = await fetch('/api/auth/logout', { method: 'POST' });
+			if (response.status === 503) {
+				window.location.assign('/login?logout=partial');
+				return;
+			}
 			if (response.ok) window.location.assign('/login');
 		});
 
@@ -253,8 +279,10 @@ const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) =>
 			const data = new FormData(profileForm);
 			const firstName = String(data.get('firstName')).trim();
 			const lastName = String(data.get('lastName')).trim();
-			if (firstName.length + lastName.length > 200) {
-				showMessage('profile-error', 'Имя и фамилия вместе должны быть не длиннее 200 символов.');
+			const patronymic = String(data.get('patronymic')).trim();
+			const fullName = [lastName, firstName, patronymic].filter(Boolean).join(' ');
+			if (fullName.length > 200) {
+				showMessage('profile-error', 'ФИО должно быть не длиннее 200 символов.');
 				return;
 			}
 			const button = profileForm.querySelector<HTMLButtonElement>('[type="submit"]')!;
@@ -264,14 +292,25 @@ const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) =>
 					method: 'PATCH',
 					headers: { 'content-type': 'application/json' },
 					body: JSON.stringify({
-						fullName: `${firstName} ${lastName}`.trim(),
+						firstName,
+						lastName,
+						patronymic,
 						email: String(data.get('email')).trim(),
 						phone: String(data.get('phone')).trim(),
 					}),
 				});
 				const payload = await response.json();
 				if (!response.ok) throw new Error(payload.error ?? 'Не удалось сохранить изменения.');
-				showMessage('profile-status', 'Изменения сохранены.');
+				const displayName = [payload.user.lastName, payload.user.firstName].filter(Boolean).join(' ');
+				document.querySelectorAll<HTMLElement>('[data-profile-name]').forEach((element) => {
+					element.textContent = displayName;
+				});
+				const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase('ru') ?? '').join('');
+				document.querySelectorAll<HTMLElement>('[data-profile-initials]').forEach((element) => {
+					element.textContent = initials;
+				});
+				profileChannel?.postMessage({ userId: profileForm.dataset.userId, ...payload.user });
+				showMessage('profile-status', payload.warning ?? 'Изменения сохранены.');
 			} catch (error) {
 				showMessage('profile-error', error instanceof Error ? error.message : 'Не удалось сохранить изменения.');
 			} finally {
@@ -317,14 +356,9 @@ const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) =>
 	:global(body) { margin: 0; min-height: 100vh; }
 	.profile-layout { min-height: 100vh; }
 	.sidebar { background: #172a27; bottom: 0; color: #e8f0ed; display: flex; flex-direction: column; left: 0; padding: 27px 17px 16px; position: fixed; top: 0; width: 252px; z-index: 3; }
-	.sidebar-top { align-items: center; display: flex; justify-content: space-between; }
-	.brand { align-items: center; color: inherit; display: flex; gap: 11px; margin: 0 7px 47px; text-decoration: none; }
-	.brand-mark { align-items: center; background: #c6e7d5; border-radius: 11px; color: #184a3c; display: flex; height: 39px; justify-content: center; width: 39px; }
-	.brand-mark svg { height: 25px; width: 25px; }
-	.brand-copy { display: grid; gap: 2px; }
-	.brand-copy strong { color: #f5f7f6; font-size: 19px; font-weight: 750; }
-	.brand-copy strong span { color: #a7d5bc; }
-	.brand-copy small { color: #91a29d; font-size: 10px; }
+	.sidebar-top { align-items: center; display: flex; justify-content: center; }
+	.brand { align-items: center; color: inherit; display: flex; justify-content: center; margin: 0 0 32px; text-decoration: none; width: 100%; }
+	.brand-logo { display: block; height: 168px; object-fit: contain; width: 100%; }
 	.workspace-label { color: #81928d; font-size: 9px; font-weight: 700; letter-spacing: 1.15px; margin: 0 10px 12px; }
 	.nav-list { display: grid; gap: 4px; }
 	.nav-item { align-items: center; background: transparent; border: 0; border-radius: 8px; color: #afbfba; display: flex; font-size: 12px; gap: 11px; min-height: 41px; padding: 0 10px; position: relative; text-decoration: none; transition: background .2s ease, color .2s ease, transform .2s ease; }
@@ -402,11 +436,10 @@ const userInitials = currentUser.fullName.split(/\s+/).slice(0, 2).map((part) =>
 	@media (max-width: 760px) {
 		.sidebar { bottom: auto; height: 58px; overflow: hidden; padding: 9px 15px; right: 0; transition: width .24s ease, height .24s ease, border-radius .24s ease; width: 100%; }
 		:global(html.mobile-nav-open) .sidebar { bottom: 0; border-radius: 0 16px 16px 0; height: 100dvh; overflow-y: auto; padding: 20px 17px 16px; right: auto; width: min(320px, calc(100vw - 48px)); }
+		.sidebar-top { justify-content: space-between; }
 		:global(html.mobile-nav-open) .sidebar-top { margin-bottom: 30px; }
-		.brand { margin: 0; }
-		.brand-mark { height: 34px; width: 34px; }
-		.brand-mark svg { height: 22px; width: 22px; }
-		.brand-copy strong { font-size: 17px; }
+		.brand { margin-bottom: 20px; width: auto; }
+		.brand-logo { height: 128px; }
 		.workspace-label, .nav-list, .sidebar-bottom { display: none; }
 		:global(html.mobile-nav-open) .workspace-label { display: block; }
 		:global(html.mobile-nav-open) .nav-list { display: grid; }
