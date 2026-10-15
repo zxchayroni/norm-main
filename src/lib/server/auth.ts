@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { AstroCookies } from 'astro';
 import { SESSION_IDLE_TIMEOUT_SECONDS } from '../session-policy';
 import { getPool } from './db';
+import { isSecureRequest } from './origin';
 
 export { assertSameOrigin } from './origin';
 
@@ -36,7 +37,7 @@ export async function createSession(
 
 	cookies.set(SESSION_COOKIE, token, {
 		httpOnly: true,
-		secure: new URL(request.url).protocol === 'https:',
+		secure: isSecureRequest(request),
 		sameSite: 'strict',
 		path: '/',
 		maxAge: SESSION_DURATION_SECONDS,
@@ -65,7 +66,7 @@ export async function getSessionUser(request: Request, cookies: AstroCookies): P
 
 	cookies.set(SESSION_COOKIE, token, {
 		httpOnly: true,
-		secure: new URL(request.url).protocol === 'https:',
+		secure: isSecureRequest(request),
 		sameSite: 'strict',
 		path: '/',
 		maxAge: SESSION_DURATION_SECONDS,

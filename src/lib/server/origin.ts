@@ -1,3 +1,8 @@
+export function isSecureRequest(request: Request): boolean {
+	if (new URL(request.url).protocol === 'https:') return true;
+	return request.headers.get('x-forwarded-proto')?.split(',')[0].trim().toLowerCase() === 'https';
+}
+
 export function assertSameOrigin(request: Request): boolean {
 	const origin = request.headers.get('origin');
 	if (!origin) return false;

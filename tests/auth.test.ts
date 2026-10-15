@@ -1,6 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { assertSameOrigin } from '../src/lib/server/origin.ts';
+import { assertSameOrigin, isSecureRequest } from '../src/lib/server/origin.ts';
+
+test('marks direct and TLS-proxied HTTPS requests as secure', () => {
+	assert.equal(isSecureRequest(new Request('https://archive.example/')), true);
+	assert.equal(isSecureRequest(new Request('http://archive.example/', {
+		headers: { 'x-forwarded-proto': 'https' },
+	})), true);
+	assert.equal(isSecureRequest(new Request('http://archive.example/', {
+		headers: { 'x-forwarded-proto': 'https, http' },
+	})), true);
+});
+
+test('does not mark plain HTTP requests as secure', () => {
+	assert.equal(isSecureRequest(new Request('http://archive.example/')), false);
+	assert.equal(isSecureRequest(new Request('http://archive.example/', {
+		headers: { 'x-forwarded-proto': 'http' },
+	})), false);
+});
 
 test('accepts an exact same-origin request', () => {
 	const request = new Request('https://archive.example/api/auth/login', {
