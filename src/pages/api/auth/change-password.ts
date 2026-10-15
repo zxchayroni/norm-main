@@ -51,7 +51,7 @@ export const POST: APIRoute = async ({ request, cookies, locals, clientAddress }
 		const passwordHash = await argon2.hash(input.newPassword, { type: argon2.argon2id });
 		await client.query(
 			`UPDATE users
-			 SET password_hash = $1, failed_login_count = 0, lockout_until = NULL
+			 SET password_hash = $1, failed_login_count = 0, lockout_until = NULL, totp_verified_at = NULL
 			 WHERE id = $2`,
 			[passwordHash, locals.user.id],
 		);

@@ -99,7 +99,7 @@ const currentYear = new Date().getFullYear();
 				requiresTotp = true;
 				totpLabel.hidden = false;
 				totpWrap.hidden = false;
-				error.textContent = 'Введите одноразовый код из приложения-аутентификатора.';
+				error.textContent = 'Введите одноразовый код из приложения-аутентификатора. После проверки код не потребуется для этого аккаунта в течение часа.';
 				error.hidden = false;
 				totpInput.focus();
 				return;

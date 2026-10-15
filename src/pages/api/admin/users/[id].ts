@@ -90,6 +90,7 @@ export const PATCH: APIRoute = async ({ params, request, locals, clientAddress }
 			set('password_hash', await argon2.hash(String(body.password), { type: argon2.argon2id }));
 			set('failed_login_count', 0);
 			set('lockout_until', null);
+			set('totp_verified_at', null);
 		}
 		if (assignments.length) {
 			values.push(id);

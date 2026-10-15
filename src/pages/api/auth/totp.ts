@@ -83,7 +83,8 @@ export const POST: APIRoute = async ({ request, locals, clientAddress }) => {
 			}
 			await client.query(
 				`UPDATE users SET totp_secret = totp_pending_secret, totp_pending_secret = NULL,
-				 totp_pending_expires_at = NULL, totp_pending_attempts = 0, totp_failed_attempts = 0, totp_last_counter = $2 WHERE id = $1`,
+				 totp_pending_expires_at = NULL, totp_pending_attempts = 0, totp_failed_attempts = 0,
+				 totp_last_counter = $2, totp_verified_at = NULL WHERE id = $1`,
 				[locals.user.id, counter],
 			);
 			await client.query(
@@ -130,7 +131,7 @@ export const POST: APIRoute = async ({ request, locals, clientAddress }) => {
 			}
 			await client.query(
 				`UPDATE users SET totp_secret = NULL, totp_pending_secret = NULL, totp_pending_expires_at = NULL,
-				 totp_last_counter = NULL, totp_failed_attempts = 0, lockout_until = NULL WHERE id = $1`,
+				 totp_last_counter = NULL, totp_verified_at = NULL, totp_failed_attempts = 0, lockout_until = NULL WHERE id = $1`,
 				[locals.user.id],
 			);
 			await client.query(

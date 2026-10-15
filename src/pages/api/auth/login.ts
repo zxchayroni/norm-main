@@ -95,33 +95,43 @@ export const POST: APIRoute = async ({ request, cookies, clientAddress }) => {
 		});
 	}
 	if (user?.totp_secret) {
-		if (totpToken === undefined) {
-			return new Response(JSON.stringify({ requiresTotp: true }), {
-				headers: { 'content-type': 'application/json; charset=utf-8' },
-			});
-		}
-		const secret = decryptTotpSecret(user.totp_secret);
-		const matchedCounter = matchingTotpCounter(secret, totpToken);
-		const accepted = matchedCounter === null ? null : await pool.query(
+		const remembered = await pool.query(
 			`UPDATE users
-			 SET totp_last_counter = $2, totp_failed_attempts = 0, failed_login_count = 0, lockout_until = NULL, last_login_at = NOW()
-			 WHERE id = $1 AND is_active AND (totp_last_counter IS NULL OR totp_last_counter < $2)
+			 SET totp_failed_attempts = 0, failed_login_count = 0, lockout_until = NULL, last_login_at = NOW()
+			 WHERE id = $1 AND is_active AND totp_verified_at > NOW() - INTERVAL '1 hour'
 			 RETURNING id`,
-			[user.id, matchedCounter],
+			[user.id],
 		);
-		if (!accepted?.rowCount) {
-			await pool.query(
+		if (!remembered.rowCount) {
+			if (totpToken === undefined) {
+				return new Response(JSON.stringify({ requiresTotp: true }), {
+					headers: { 'content-type': 'application/json; charset=utf-8' },
+				});
+			}
+			const secret = decryptTotpSecret(user.totp_secret);
+			const matchedCounter = matchingTotpCounter(secret, totpToken);
+			const accepted = matchedCounter === null ? null : await pool.query(
+				`UPDATE users
+				 SET totp_last_counter = $2, totp_verified_at = NOW(), totp_failed_attempts = 0,
+				     failed_login_count = 0, lockout_until = NULL, last_login_at = NOW()
+				 WHERE id = $1 AND is_active AND (totp_last_counter IS NULL OR totp_last_counter < $2)
+				 RETURNING id`,
+				[user.id, matchedCounter],
+			);
+			if (!accepted?.rowCount) {
+				await pool.query(
 				`UPDATE users
 				 SET totp_failed_attempts = totp_failed_attempts + 1,
 				     lockout_until = CASE WHEN totp_failed_attempts >= 4 THEN NOW() + INTERVAL '15 minutes' ELSE lockout_until END
 				 WHERE id = $1 AND is_active`,
-				[user.id],
-			);
-			await audit(user.id, 'login_failed', 'user', user.id, 'failure', { reason: 'totp' }, clientAddress);
-			return new Response(JSON.stringify({ error: 'Неверный или уже использованный код подтверждения.' }), {
-				status: 401,
-				headers: { 'content-type': 'application/json; charset=utf-8' },
-			});
+					[user.id],
+				);
+				await audit(user.id, 'login_failed', 'user', user.id, 'failure', { reason: 'totp' }, clientAddress);
+				return new Response(JSON.stringify({ error: 'Неверный или уже использованный код подтверждения.' }), {
+					status: 401,
+					headers: { 'content-type': 'application/json; charset=utf-8' },
+				});
+			}
 		}
 	} else {
 		await pool.query(
