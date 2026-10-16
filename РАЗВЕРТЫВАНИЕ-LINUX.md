@@ -83,14 +83,14 @@ sudo adduser --system --group --home /opt/normarchive normarchive
 sudo install -d -o normarchive -g normarchive /opt/normarchive/app /var/lib/normarchive/files
 ```
 
-Установите версию проекта из GitHub. Для production используйте проверенный тег релиза или полный commit hash, а не произвольное текущее состояние основной ветки. Откройте страницу нужного репозитория, нажмите **Code → HTTPS → Copy URL**, затем подставьте скопированный адрес вместо примера ниже:
+Установите версию проекта из GitHub. Для production используйте проверенный тег релиза или полный commit hash, а не произвольное текущее состояние основной ветки. Репозиторий проекта: `https://github.com/zxchayroni/norm-main`.
 
 ```bash
-sudo -u normarchive git clone https://github.com/OWNER/REPOSITORY.git /opt/normarchive/app
+sudo -u normarchive git clone https://github.com/zxchayroni/norm-main.git /opt/normarchive/app
 sudo -u normarchive git -C /opt/normarchive/app checkout --detach RELEASE_TAG_OR_COMMIT
 ```
 
-Замените адрес репозитория, `RELEASE_TAG_OR_COMMIT` и остальные примеры на реальные значения. Для закрытого репозитория настройте на сервере безопасную авторизацию GitHub с доступом только на чтение; не вставляйте пароль или токен в URL и не сохраняйте их в командах. Не переносите исходный код, `node_modules`, `dist` или `.env` с Windows: исходники берутся с GitHub, зависимости и сборка создаются на Ubuntu, а секреты настраиваются отдельно.
+Замените `RELEASE_TAG_OR_COMMIT` на проверенный тег или полный commit hash нужной версии. Для закрытого репозитория настройте на сервере безопасную авторизацию GitHub с доступом только на чтение; не вставляйте пароль или токен в URL и не сохраняйте их в командах. Не переносите исходный код, `node_modules`, `dist` или `.env` с Windows: исходники берутся с GitHub, зависимости и сборка создаются на Ubuntu, а секреты настраиваются отдельно.
 
 Установите зависимости:
 
