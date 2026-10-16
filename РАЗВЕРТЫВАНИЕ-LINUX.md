@@ -27,16 +27,25 @@ hostname -I
 
 ## 2. Установить Node.js
 
-В репозитории используется Node.js версии не ниже 22.12. Установите актуальную версию ветки 22 из репозитория NodeSource:
+В репозитории требуется Node.js не ниже `22.12.0`. В Ubuntu Server 24.04 системный пакет может быть старее, поэтому подключите официальный репозиторий NodeSource для ветки 22 вручную:
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg
+sudo install -d -m 0755 /etc/apt/keyrings
+sudo rm -f /etc/apt/sources.list.d/nodesource.list /etc/apt/sources.list.d/nodesource.sources
+set -o pipefail
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
+sudo chmod 0644 /etc/apt/keyrings/nodesource.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
+sudo apt update
+apt-cache policy nodejs
 sudo apt install -y nodejs
 node --version
 npm --version
 ```
 
-Убедитесь, что `node --version` показывает `v22.12.0` или новее.
+Перед установкой проверьте, что `apt-cache policy nodejs` показывает источник `deb.nodesource.com/node_22.x`, а кандидат относится к Node.js 22. После установки `node --version` должен показать `v22.12.0` или новее. Команды подходят для архитектур `amd64` и `arm64`; проверьте её через `dpkg --print-architecture`. Если `apt update` не может получить `deb.nodesource.com`, проверьте исходящий HTTPS-доступ к этому адресу или корпоративный прокси — повторный запуск установщика проблему сети не исправит. Не продолжайте, если установилась системная версия Node.js ниже требуемой.
 
 ## 3. Создать базу PostgreSQL
 
